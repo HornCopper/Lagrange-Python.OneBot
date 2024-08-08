@@ -1,5 +1,6 @@
 import asyncio
 import os
+import yaml
 
 from lagrange import Lagrange
 from lagrange.client.client import Client
@@ -7,6 +8,22 @@ from lagrange.client.events.group import GroupMessage
 from lagrange.client.events.service import ServerKick
 from lagrange.client.message.elems import At, Raw, Text
 
+class config:
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            if isinstance(value, dict):
+                value = config(**value)
+            setattr(self, key, value)
+
+def yaml_to_class(yaml_str, cls):
+    config_data = yaml.safe_load(yaml_str)
+    return cls(**config_data)
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+yaml_file_path = os.path.join(script_dir, "config.yml")
+
+with open(yaml_file_path, "r", encoding="utf8") as f:
+    Config = yaml_to_class(f.read(), config)
 
 async def msg_handler(client: Client, event: GroupMessage):
     print(event)
@@ -32,9 +49,9 @@ async def handle_kick(client: "Client", event: "ServerKick"):
 
 
 lag = Lagrange(
-    int(os.environ.get("LAGRANGE_UIN", "0")),
-    "linux",
-    os.environ.get("LAGRANGE_SIGN_URL", "")
+    uin = Config.uin,
+    protocol = Config.protocal,
+    sign_url = Config.signserver
 )
 lag.log.set_level("DEBUG")
 lag.subscribe(GroupMessage, msg_handler)
