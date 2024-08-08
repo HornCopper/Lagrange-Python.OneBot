@@ -271,3 +271,4 @@ cython_debug/
 
 config.yml
 device.json
+sig.bin
