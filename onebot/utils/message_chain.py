@@ -43,7 +43,7 @@ def format(msg: List[str], type: Union[Element, MessageSegment]) -> List[Union[E
     fm = []
     for m in msg:
         if type == MessageSegment:
-            fm.append(MessageSegment(m))
+            fm.append(MessageSegment(**m))
         elif type == Element:
             fm.append(Element(m))
     return fm

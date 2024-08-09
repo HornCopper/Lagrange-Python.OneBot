@@ -41,6 +41,10 @@ websocket_connection = None
 
 instance = Communication
 
+class LagrangeClient(Lagrange):
+    def get_client(self):
+        return self.client
+
 async def msg_handler(client: Client, event: GroupMessage):
     if websocket_connection:
         content = ms_format(event.msg_chain)
@@ -65,11 +69,22 @@ async def handle_kick(client: "Client", event: "ServerKick"):
     print(f"Kicked by Server: [{event.title}] {event.tips}")
     await client.stop()
 
-lag = Lagrange(
+lag = LagrangeClient(
     uin = Config.uin,
     protocol = Config.protocal,
     sign_url = Config.signserver
 )
+
+async def process(client: Client, data: dict) -> dict:
+    print(data)
+    echo = data.get("echo")
+    action = data.get("action")
+    if not hasattr(instance, action):
+        return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+    params = data.get("params")
+    method = getattr(instance, action)
+    resp = await method(client=lag.get_client(), echo=echo, **params)
+    return resp
 
 async def connect():
     global websocket_connection
@@ -79,34 +94,46 @@ async def connect():
             async with websockets.connect(uri, extra_headers={"X-Self-Id": str(Config.uin)}) as websocket:
                 websocket_connection = websocket
                 print("WebSocket Established")
-
                 while True:
+
                     try:
-                        response = await websocket.recv()
-                        response = json.loads(response)
-                        print(response)
-                        params = response.get("params")
-                        action = response.get("action")
-                        method = getattr(instance, action)
-                        resp = await method(client=client, **params)
-                        await websocket.send(json.dumps(resp, ensure_ascii=False))
+                        rec = await websocket.recv()
+                        rec = json.loads(rec)
+
+                        try:
+                            rply = await process(lag.get_client(), rec)
+                            await websocket.send(json.dumps(rply, ensure_ascii=False))
+                        except Exception as e:
+                            print(f"Error while processing message: {e}")
+                        
                     except websockets.exceptions.ConnectionClosed:
                         print("WebSocket Closed")
                         break
+                    except Exception as e:
+                        print(f"Unhandled Exception in message handling: {e}")
         except websockets.exceptions.ConnectionClosed:
             print("WebSocket Connection Closed, retrying...")
-
+            continue
+        except websockets.exceptions.ConnectionClosedError as e:
+            print(f"WebSocket Connection Closed: {e}")
+            continue
+        except ConnectionRefusedError:
+            print("Connection Refused, retrying...")
+            await asyncio.sleep(5)
+        except Exception as e:
+            print(f"Unhandled Exception: {e}")
         await asyncio.sleep(5)
+
         
 lag.log.set_level("DEBUG")
 lag.subscribe(GroupMessage, msg_handler)
 lag.subscribe(ServerKick, handle_kick)
 
-def run_websocket():
-    asyncio.run(connect())
-
-ws_thread = threading.Thread(target=run_websocket)
-ws_thread.start()
+async def main():
+    task_lgr = asyncio.create_task(lag.run())
+    task_ws = asyncio.create_task(connect())
+    
+    await asyncio.gather(task_lgr, task_ws)
 
 def handle_sigint(signum, frame):
     print("KeyboardInterrupt")
@@ -114,4 +141,4 @@ def handle_sigint(signum, frame):
 
 signal.signal(signal.SIGINT, handle_sigint)
 
-lag.launch()
+asyncio.run(main())
