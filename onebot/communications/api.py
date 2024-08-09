@@ -15,7 +15,7 @@ class Communication:
     async def send_group_msg(client: Client, group_id: int, message: Union[list, str], echo: str, user_id: int = 0) -> dict:
         if isinstance(message, list):
             message = format(message, MessageSegment)
-            message = ms_unformat(message)
+            message = await ms_unformat(client, message, group_id)
         elif isinstance(message, str):
             message = [Text(message)]
         message_id = await client.send_grp_msg(msg_chain=message, grp_id=group_id)
@@ -25,7 +25,9 @@ class Communication:
     async def send_private_msg(client: Client, user_id: int, message: Union[list, str], echo: str) -> dict:
         if isinstance(message, list):
             message = format(message, MessageSegment)
-            message = ms_unformat(message)
+            # uid = get_uid_by_uin(user_id) 
+            uid = ""
+            message = await ms_unformat(client, message, uid)
         elif isinstance(message, str):
             message = [Text(message)]
         message_id = await client.send_friend_msg(msg_chain=message, uid=user_id)
