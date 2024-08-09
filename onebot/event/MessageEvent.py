@@ -1,6 +1,4 @@
-from typing import Literal, List
-
-from lagrange.client.message.types import Element
+from typing import Literal
 
 from .ManualEvent import Event, Sender, Anonymous
 

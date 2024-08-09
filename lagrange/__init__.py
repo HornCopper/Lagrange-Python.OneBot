@@ -64,3 +64,6 @@ class Lagrange:
             log.root.info("Program exited by user")
         else:
             log.root.info("Program exited normally")
+
+    def get_client(self):
+        return self.client

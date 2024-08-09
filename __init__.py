@@ -31,6 +31,7 @@ from lagrange.client.client import Client
 from lagrange.client.events.group import GroupMessage
 from lagrange.client.events.service import ServerKick
 
+from onebot.communications.api import Communication
 from onebot.event.MessageEvent import GroupMessageEvent
 from onebot.utils.message_chain import ms_format, ctd
 
@@ -38,33 +39,9 @@ from config import Config
 
 websocket_connection = None
 
-async def connect():
-    global websocket_connection
-    uri = Config.ws_url
-    while True:
-        try:
-            async with websockets.connect(uri, extra_headers={"X-Self-Id": str(Config.uin)}) as websocket:
-                websocket_connection = websocket
-                print("WebSocket Established")
-
-                while True:
-                    try:
-                        response = await websocket.recv()
-                        print(f"Received from server: {response}")
-                    except websockets.exceptions.ConnectionClosed:
-                        print("WebSocket Closed")
-                        break
-                    except Exception as e:
-                        print(f"WebSocket Message Handling Error: {e}")
-        except websockets.exceptions.ConnectionClosed:
-            print("WebSocket Connection Closed, retrying...")
-        except Exception as e:
-            print(f"WebSocket Connection Error: {e}")
-
-        await asyncio.sleep(5)
+instance = Communication
 
 async def msg_handler(client: Client, event: GroupMessage):
-    print(event.msg_chain[0])
     if websocket_connection:
         content = ms_format(event.msg_chain)
         formated_event = GroupMessageEvent(
@@ -76,7 +53,6 @@ async def msg_handler(client: Client, event: GroupMessage):
             raw_message=event.msg, 
             message="".join(str(i) for i in content)
         )
-        print(ctd(formated_event))
         await websocket_connection.send(
             json.dumps(
                 ctd(formated_event),
@@ -94,6 +70,34 @@ lag = Lagrange(
     protocol = Config.protocal,
     sign_url = Config.signserver
 )
+
+async def connect():
+    global websocket_connection
+    uri = Config.ws_url
+    while True:
+        try:
+            async with websockets.connect(uri, extra_headers={"X-Self-Id": str(Config.uin)}) as websocket:
+                websocket_connection = websocket
+                print("WebSocket Established")
+
+                while True:
+                    try:
+                        response = await websocket.recv()
+                        response = json.loads(response)
+                        print(response)
+                        params = response.get("params")
+                        action = response.get("action")
+                        method = getattr(instance, action)
+                        resp = await method(client=client, **params)
+                        await websocket.send(json.dumps(resp, ensure_ascii=False))
+                    except websockets.exceptions.ConnectionClosed:
+                        print("WebSocket Closed")
+                        break
+        except websockets.exceptions.ConnectionClosed:
+            print("WebSocket Connection Closed, retrying...")
+
+        await asyncio.sleep(5)
+        
 lag.log.set_level("DEBUG")
 lag.subscribe(GroupMessage, msg_handler)
 lag.subscribe(ServerKick, handle_kick)
