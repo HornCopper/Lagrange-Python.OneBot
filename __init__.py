@@ -51,7 +51,7 @@ async def msg_handler(client: Client, event: GroupMessage):
             time=event.time, 
             group_id=event.grp_id, 
             user_id=event.uin, 
-            self_id=int(Config.uin), 
+            self_id=Config.uin, 
             raw_message=event.msg, 
             message="".join(str(i) for i in content)
         )
@@ -91,8 +91,8 @@ async def connect():
             async with websockets.connect(uri, extra_headers={"X-Self-Id": str(Config.uin)}) as websocket:
                 websocket_connection = websocket
                 logger.onebot.info("WebSocket Established")
+                
                 while True:
-
                     try:
                         rec = await websocket.recv()
                         rec = json.loads(rec)
@@ -102,24 +102,20 @@ async def connect():
                             await websocket.send(json.dumps(rply, ensure_ascii=False))
                         except Exception as e:
                             logger.onebot.error(f"Error while processing message: {e}")
-                        
+                    
                     except websockets.exceptions.ConnectionClosed:
                         logger.onebot.warning("WebSocket Closed")
                         break
                     except Exception as e:
                         logger.onebot.error(f"Unhandled Exception in message handling: {e}")
-        except websockets.exceptions.ConnectionClosed:
-            logger.onebot.warning("WebSocket Connection Closed, retrying...")
-            continue
-        except websockets.exceptions.ConnectionClosedError as e:
-            logger.onebot.error(f"WebSocket Connection Closed: {e}")
-            continue
+
+        except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as e:
+            logger.onebot.warning(f"WebSocket Connection Closed: {e}, retrying...")
         except ConnectionRefusedError:
             logger.onebot.error("Connection Refused, retrying...")
             await asyncio.sleep(5)
         except Exception as e:
             logger.onebot.error(f"Unhandled Exception: {e}")
-        await asyncio.sleep(5)
 
         
 lag.log.set_level(Config.log_level)

@@ -6,7 +6,7 @@ from config import Config
 
 class Event(BaseModel):
     time: int = int(datetime.now().timestamp())
-    self_id: int = int(Config.uin)
+    self_id: int = Config.uin
     post_type: Literal["message", "notice", "request", "meta_event"] = ""
 
 class Sender(BaseModel):
