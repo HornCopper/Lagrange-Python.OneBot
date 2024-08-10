@@ -2,8 +2,6 @@ import websockets
 import os
 import json
 import asyncio
-import threading
-import signal
 
 config_default = """# Lagrange Python (OneBot V11) Configuration
 
@@ -35,7 +33,7 @@ from onebot.communications.api import Communication
 from onebot.event.MessageEvent import GroupMessageEvent
 from onebot.utils.message_chain import ms_format, ctd
 
-from config import Config
+from config import Config, logger
 
 websocket_connection = None
 
@@ -66,17 +64,16 @@ async def msg_handler(client: Client, event: GroupMessage):
         ...
 
 async def handle_kick(client: "Client", event: "ServerKick"):
-    print(f"Kicked by Server: [{event.title}] {event.tips}")
+    logger.login.error(f"Kicked by Server: [{event.title}] {event.tips}")
     await client.stop()
 
 lag = LagrangeClient(
     uin = Config.uin,
-    protocol = Config.protocal,
-    sign_url = Config.signserver
+    protocol = Config.protocol,
+    sign_url = Config.sign_server
 )
 
 async def process(client: Client, data: dict) -> dict:
-    print(data)
     echo = data.get("echo")
     action = data.get("action")
     if not hasattr(instance, action):
@@ -93,7 +90,7 @@ async def connect():
         try:
             async with websockets.connect(uri, extra_headers={"X-Self-Id": str(Config.uin)}) as websocket:
                 websocket_connection = websocket
-                print("WebSocket Established")
+                logger.onebot.info("WebSocket Established")
                 while True:
 
                     try:
@@ -104,28 +101,28 @@ async def connect():
                             rply = await process(lag.get_client(), rec)
                             await websocket.send(json.dumps(rply, ensure_ascii=False))
                         except Exception as e:
-                            print(f"Error while processing message: {e}")
+                            logger.onebot.error(f"Error while processing message: {e}")
                         
                     except websockets.exceptions.ConnectionClosed:
-                        print("WebSocket Closed")
+                        logger.onebot.warning("WebSocket Closed")
                         break
                     except Exception as e:
-                        print(f"Unhandled Exception in message handling: {e}")
+                        logger.onebot.error(f"Unhandled Exception in message handling: {e}")
         except websockets.exceptions.ConnectionClosed:
-            print("WebSocket Connection Closed, retrying...")
+            logger.onebot.warning("WebSocket Connection Closed, retrying...")
             continue
         except websockets.exceptions.ConnectionClosedError as e:
-            print(f"WebSocket Connection Closed: {e}")
+            logger.onebot.error(f"WebSocket Connection Closed: {e}")
             continue
         except ConnectionRefusedError:
-            print("Connection Refused, retrying...")
+            logger.onebot.error("Connection Refused, retrying...")
             await asyncio.sleep(5)
         except Exception as e:
-            print(f"Unhandled Exception: {e}")
+            logger.onebot.error(f"Unhandled Exception: {e}")
         await asyncio.sleep(5)
 
         
-lag.log.set_level("DEBUG")
+lag.log.set_level(Config.log_level)
 lag.subscribe(GroupMessage, msg_handler)
 lag.subscribe(ServerKick, handle_kick)
 
@@ -134,11 +131,5 @@ async def main():
     task_ws = asyncio.create_task(connect())
     
     await asyncio.gather(task_lgr, task_ws)
-
-def handle_sigint(signum, frame):
-    print("KeyboardInterrupt")
-    os._exit(0)
-
-signal.signal(signal.SIGINT, handle_sigint)
 
 asyncio.run(main())

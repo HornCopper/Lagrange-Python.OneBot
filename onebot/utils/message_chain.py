@@ -10,6 +10,9 @@ import io
 import httpx
 import urllib
 import os
+import base64
+
+from config import logger
 
 def ms_format(msgs: List[Element]) -> List[MessageSegment]:
     new_msg: List[MessageSegment] = []
@@ -25,7 +28,7 @@ def ms_format(msgs: List[Element]) -> List[MessageSegment]:
         elif isinstance(m, Text):
             new_msg.append(MessageSegment.text(m.text))
         else:
-            print(f"未知消息类型: {m}")
+            logger.onebot.error(f"未知消息类型: {m}")
     return new_msg
 
 async def ms_unformat(client: Client, msgs: List[MessageSegment], group_id: int = 0, uid: str = "") -> List[Element]:
@@ -52,12 +55,12 @@ async def ms_unformat(client: Client, msgs: List[MessageSegment], group_id: int 
                     local_path = urllib.parse.urlparse(img_raw).path
                     if local_path.startswith("/") and local_path[2] == ":":
                         local_path = local_path[1:]
-                    print(local_path)
                     if not os.path.exists(local_path):
                         continue
-                    print(1)
                     with open(local_path, "rb") as f:
                         img_raw = io.BytesIO(f.read())
+                elif img_raw[0:6] == "base64":
+                    img_raw = io.BytesIO(base64.b64decode(img_raw[9:]))
                 else:
                     raise ValueError(f"Unknown content type of Image `{img_raw}`!")
             else:
@@ -71,7 +74,7 @@ async def ms_unformat(client: Client, msgs: List[MessageSegment], group_id: int 
         elif msg.type == "text":
             new_elements.append(Text(text=msg.data["text"]))
         else:
-            print(f"未知消息类型: {msg}")
+            logger.onebot.error(f"未知消息类型: {msg}")
     return new_elements
 
 def format(msg: List[str], type: Union[Element, MessageSegment]) -> List[Union[Element, MessageSegment]]:

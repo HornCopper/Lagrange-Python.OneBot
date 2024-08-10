@@ -80,6 +80,7 @@ class LoggerProvider:
         self.loggers: dict[str, _Logger] = {
             "lagrange": _Logger(self._root),
         }
+        self.fork("onebot")
         self.fork("login")
         self.fork("network")
         self.fork("utils")
@@ -109,6 +110,9 @@ class LoggerProvider:
     def login(self) -> _Logger:
         return self.loggers["lagrange.login"]
 
+    @property
+    def onebot(self) -> _Logger:
+        return self.loggers["lagrange.onebot"]
 
 log = LoggerProvider()
 

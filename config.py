@@ -1,6 +1,12 @@
 import yaml
 import os
 
+from lagrange.utils.log import LoggerProvider, install_loguru
+
+logger = LoggerProvider()
+
+install_loguru()
+
 class config:
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
