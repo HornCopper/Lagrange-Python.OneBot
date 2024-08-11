@@ -38,7 +38,7 @@ async def connect():
                         rec = await websocket.recv()
                         rec = json.loads(rec)
 
-                        rply = await process(client, rec)
+                        rply = await process(lag.client(), rec)
                         await websocket.send(json.dumps(rply, ensure_ascii=False))
                     
                     except websockets.exceptions.ConnectionClosed:
