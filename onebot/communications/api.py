@@ -1,7 +1,9 @@
 from nonebot.adapters.onebot.v11 import MessageSegment
 from lagrange.client.client import Client
 from lagrange.client.message.elems import Text
+
 from onebot.utils.message_chain import format, ms_unformat
+from onebot.uin import get_uid_by_uin
 
 from typing import Union, Literal
 
@@ -22,19 +24,20 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": {"message_id": message_id}, "echo": echo}
     
     @staticmethod
-    async def send_private_msg(client: Client, user_id: int, message: Union[list, str], echo: str) -> dict:
+    async def send_private_msg(client: Client, user_id: int, message: Union[list, str], echo: str, group_id: int = 0) -> dict:
+        uid = get_uid_by_uin(user_id)
+        if not uid:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         if isinstance(message, list):
             message = format(message, MessageSegment)
-            # uid = get_uid_by_uin(user_id) 
-            uid = ""
             message = await ms_unformat(client, message, uid)
         elif isinstance(message, str):
             message = [Text(message)]
-        message_id = await client.send_friend_msg(msg_chain=message, uid=user_id)
+        message_id = await client.send_friend_msg(msg_chain=message, uid=uid)
         return {"status": "ok", "retcode": 0, "data": {"message_id": message_id}, "echo": echo}
     
     @staticmethod
-    async def send_msg(client: Client, user_id: int, group_id: int, message_type: Literal["group", "private"], message: Union[list, str], echo: str) -> dict:
+    async def send_msg(client: Client, user_id: int, message_type: Literal["group", "private"], message: Union[list, str], echo: str, group_id: int = 0) -> dict:
         method = getattr(Communication, f"send_{message_type}_msg")
         return await method(client=client, user_id=user_id, message=message, group_id=group_id, echo=echo)
     

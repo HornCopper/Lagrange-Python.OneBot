@@ -6,7 +6,7 @@ config_default = """# Lagrange Python (OneBot V11) Configuration
 uin: ""
 # Bot QQ号 使用扫码登录
 
-protocal: ""
+protocol: ""
 # 登录协议 推荐使用Linux（默认）
 
 sign_server: ""
