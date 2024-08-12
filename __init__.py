@@ -14,6 +14,8 @@ sign_server: ""
 
 ws_url: ""
 # 反向 WebSocket 地址
+
+log_level: "INFO"
 """
 
 if not os.path.exists("./config.yml"):
