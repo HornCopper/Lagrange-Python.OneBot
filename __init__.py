@@ -1,4 +1,5 @@
 import os
+import sys
 import asyncio
 
 config_default = """# Lagrange Python (OneBot V11) Configuration
@@ -22,15 +23,13 @@ if not os.path.exists("./config.yml"):
     print("The configuration file does not exist, please edit it, it has been created for you in current directory.")
     with open("./config.yml", "w", encoding="utf8") as f:
         f.write(config_default)
-    os._exit(0)
+    sys.exit(0)
 
-from ws import connect
 from app import lag
 
+
 async def main():
-    task_lgr = asyncio.create_task(lag.run())
-    task_ws = asyncio.create_task(connect())
-    
-    await asyncio.gather(task_lgr, task_ws)
+    await asyncio.create_task(lag.run())
+
 
 asyncio.run(main())

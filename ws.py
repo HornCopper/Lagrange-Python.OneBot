@@ -3,7 +3,6 @@ import json
 import asyncio
 
 from config import logger, Config
-from app import lag
 
 from lagrange.client.client import Client
 from onebot.communications.api import Communication
@@ -11,6 +10,7 @@ from onebot.communications.api import Communication
 websocket_connection = None
 
 instance = Communication
+
 
 async def process(client: Client, data: dict) -> dict:
     echo = data.get("echo")
@@ -21,10 +21,11 @@ async def process(client: Client, data: dict) -> dict:
     logger.onebot.success(f"Client Request Action Successfully: `{action}`.")
     params = data.get("params")
     method = getattr(instance, action)
-    resp = await method(client=lag.get_client(), echo=echo, **params)
+    resp = await method(client=client, echo=echo, **params)
     return resp
 
-async def connect():
+
+async def connect(client: Client):
     global websocket_connection
     uri = Config.ws_url
     while True:
@@ -32,15 +33,15 @@ async def connect():
             async with websockets.connect(uri, extra_headers={"X-Self-Id": str(Config.uin)}) as websocket:
                 websocket_connection = websocket
                 logger.onebot.success("WebSocket Established")
-                
+
                 while True:
                     try:
                         rec = await websocket.recv()
                         rec = json.loads(rec)
 
-                        rply = await process(lag.get_client(), rec)
+                        rply = await process(client, rec)
                         await websocket.send(json.dumps(rply, ensure_ascii=False))
-                    
+
                     except websockets.exceptions.ConnectionClosed:
                         logger.onebot.warning("WebSocket Closed")
                         break
