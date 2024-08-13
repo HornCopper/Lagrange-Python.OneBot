@@ -1,9 +1,7 @@
 from typing import List, Union
-
 from lagrange.client.message.elems import Text, Image, At, Audio, Quote, MarketFace
 from lagrange.client.message.types import Element
 from lagrange.client.client import Client
-
 from nonebot.adapters.onebot.v11.message import MessageSegment
 
 import io
@@ -14,86 +12,95 @@ import base64
 
 from config import logger
 
-def ms_format(msgs: List[Element]) -> List[MessageSegment]:
-    new_msg: List[MessageSegment] = []
-    for m in msgs:
-        if isinstance(m, At):
-            new_msg.append(MessageSegment.at(str(m.uin)))
-        elif isinstance(m, Quote):
-            new_msg.append(MessageSegment.reply(str(m.seq)))
-        elif isinstance(m, (Image, MarketFace)):
-            new_msg.append(MessageSegment.image(str(m.url)))
-        # elif isinstance(m, Audio):
-        #     new_msg.append(MessageSegment.music(m.name))
-        elif isinstance(m, Text):
-            new_msg.append(MessageSegment.text(m.text))
-        else:
-            logger.onebot.error(f"未知消息类型: {m}")
-    return new_msg
+class MessageConverter:
+    def __init__(self, client: Client):
+        self.client = client
 
-async def ms_unformat(client: Client, msgs: List[MessageSegment], group_id: int = 0, uid: str = "") -> List[Element]:
-    new_elements: List[Element] = []
-    for msg in msgs:
-        if msg.type == "at":
-            new_elements.append(At(uin=int(msg.data["qq"])))
-        elif msg.type == "reply":
-            new_elements.append(Quote(seq=int(msg.data["id"])))
-        elif msg.type == "image":
-            img_raw = msg.data["file"]
-            if isinstance(img_raw, (bytes, io.BytesIO)):
-                img_raw = io.BytesIO(img_raw)
-            elif isinstance(img_raw, str):
-                if img_raw[0:4] == "http":
-                    async with httpx.AsyncClient(follow_redirects=True, verify=False) as httpx_client:
-                        try:
-                            resp = await httpx_client.get(img_raw, timeout=600)
-                            result = resp.content
-                            img_raw = io.BytesIO(result)
-                        except httpx.TimeoutException:
-                            continue
-                elif img_raw[0:4] == "file":
-                    local_path = urllib.parse.urlparse(img_raw).path
-                    if local_path.startswith("/") and local_path[2] == ":":
-                        local_path = local_path[1:]
-                    if not os.path.exists(local_path):
-                        continue
-                    with open(local_path, "rb") as f:
-                        img_raw = io.BytesIO(f.read())
-                elif img_raw[0:6] == "base64":
-                    img_raw = io.BytesIO(base64.b64decode(img_raw[9:]))
-                else:
-                    raise ValueError(f"Unknown content type of Image `{img_raw}`!")
+    def convert_to_segments(self, elements: List[Element]) -> List[MessageSegment]:
+        segments: List[MessageSegment] = []
+        for element in elements:
+            if isinstance(element, At):
+                segments.append(MessageSegment.at(str(element.uin)))
+            elif isinstance(element, Quote):
+                segments.append(MessageSegment.reply(str(element.seq)))
+            elif isinstance(element, (Image, MarketFace)):
+                segments.append(MessageSegment.image(str(element.url)))
+            elif isinstance(element, Text):
+                segments.append(MessageSegment.text(element.text))
             else:
-                raise ValueError(f"Unknown file type of Image `{img_raw}`!")
-            if group_id:
-                new_elements.append(await client.upload_grp_image(img_raw, group_id))
-            elif uid != "":
-                new_elements.append(await client.upload_friend_image(img_raw, uid=uid))
-        # elif msg.type == "music":
-        #     new_elements.append(Audio(name=msg.data["title"]))
-        elif msg.type == "text":
-            new_elements.append(Text(text=msg.data["text"]))
-        else:
-            logger.onebot.error(f"未知消息类型: {msg}")
-    return new_elements
+                logger.onebot.error(f"Unknown message type: {element}")
+        return segments
 
-def format(msg: List[str], type: Union[Element, MessageSegment]) -> List[Union[Element, MessageSegment]]:
-    fm = []
-    for m in msg:
-        if type == MessageSegment:
-            fm.append(MessageSegment(**m))
-        elif type == Element:
-            fm.append(Element(m))
-    return fm
+    async def convert_to_elements(self, segments: List[MessageSegment], group_id: int = 0, user_id: str = "") -> List[Element]:
+        elements: List[Element] = []
+        for segment in segments:
+            if segment.type == "at":
+                elements.append(At(uin=int(segment.data["qq"])))
+            elif segment.type == "reply":
+                elements.append(Quote(seq=int(segment.data["id"])))
+            elif segment.type == "image":
+                image_content = segment.data["file"]
+                image_content = await self._process_image_content(image_content)
+                if image_content:
+                    if group_id:
+                        elements.append(await self.client.upload_grp_image(image_content, group_id))
+                    elif user_id:
+                        elements.append(await self.client.upload_friend_image(image_content, uid=user_id))
+            elif segment.type == "text":
+                elements.append(Text(text=segment.data["text"]))
+            else:
+                logger.onebot.error(f"Unknown message type: {segment}")
+        return elements
 
-def ctd(obj):
-    if not hasattr(obj, "__dict__"):
-        return obj
-    
-    result = {}
-    for key, value in obj.__dict__.items():
-        if hasattr(value, "__dict__"):
-            result[key] = ctd(value)
+    def parse_message(self, messages: List[str], target_type: Union[Element, MessageSegment]) -> List[Union[Element, MessageSegment]]:
+        parsed_messages = []
+        for message in messages:
+            if target_type == MessageSegment:
+                parsed_messages.append(MessageSegment(**message))
+            elif target_type == Element:
+                parsed_messages.append(Element(message))
+        return parsed_messages
+
+    def convert_to_dict(self, obj):
+        if not hasattr(obj, "__dict__"):
+            return obj
+        
+        result = {}
+        for key, value in obj.__dict__.items():
+            result[key] = self.convert_to_dict(value) if hasattr(value, "__dict__") else value
+        return result
+
+    async def _process_image_content(self, content: Union[str, bytes, io.BytesIO]) -> io.BytesIO:
+        if isinstance(content, (bytes, io.BytesIO)):
+            return io.BytesIO(content)
+        elif isinstance(content, str):
+            if content.startswith("http"):
+                return await self._download_image_content(content)
+            elif content.startswith("file"):
+                return self._load_local_image_content(content)
+            elif content.startswith("base64"):
+                return io.BytesIO(base64.b64decode(content[9:]))
+            else:
+                raise ValueError(f"Unknown content type for Image `{content}`!")
         else:
-            result[key] = value
-    return result
+            raise ValueError(f"Unknown file type for Image `{content}`!")
+
+    async def _download_image_content(self, url: str) -> io.BytesIO:
+        async with httpx.AsyncClient(follow_redirects=True, verify=False) as httpx_client:
+            try:
+                response = await httpx_client.get(url, timeout=600)
+                return io.BytesIO(response.content)
+            except httpx.TimeoutException:
+                logger.onebot.error(f"Image download timed out: {url}")
+                return None
+
+    def _load_local_image_content(self, file_path: str) -> io.BytesIO:
+        local_path = urllib.parse.urlparse(file_path).path
+        if local_path.startswith("/") and local_path[2] == ":":
+            local_path = local_path[1:]
+        if os.path.exists(local_path):
+            with open(local_path, "rb") as file:
+                return io.BytesIO(file.read())
+        else:
+            logger.onebot.error(f"Local image not found: {local_path}")
+            return None

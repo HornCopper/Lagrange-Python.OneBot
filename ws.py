@@ -9,10 +9,7 @@ from onebot.communications.api import Communication
 
 websocket_connection = None
 
-instance = Communication
-
-
-async def process(client: Client, data: dict) -> dict:
+async def process(client: Client, data: dict, instance: Communication) -> dict:
     echo = data.get("echo")
     action = data.get("action")
     if not hasattr(instance, action):
@@ -21,13 +18,14 @@ async def process(client: Client, data: dict) -> dict:
     logger.onebot.success(f"Client Request Action Successfully: `{action}`.")
     params = data.get("params")
     method = getattr(instance, action)
-    resp = await method(client=client, echo=echo, **params)
+    resp = await method(echo=echo, **params)
     return resp
 
 
 async def connect(client: Client):
     global websocket_connection
     uri = Config.ws_url
+    instance = Communication(client=client)
     while True:
         try:
             async with websockets.connect(uri, extra_headers={"X-Self-Id": str(Config.uin)}) as websocket:
@@ -39,14 +37,14 @@ async def connect(client: Client):
                         rec = await websocket.recv()
                         rec = json.loads(rec)
 
-                        rply = await process(client, rec)
+                        rply = await process(client, rec, instance)
                         await websocket.send(json.dumps(rply, ensure_ascii=False))
 
                     except websockets.exceptions.ConnectionClosed:
                         logger.onebot.warning("WebSocket Closed")
                         break
-                    # except Exception as e:
-                    #     logger.onebot.error(f"Unhandled Exception in message handling: {e}")
+                    except Exception as e:
+                        logger.onebot.error(f"Unhandled Exception in message handling: {e}")
 
         except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as e:
             logger.onebot.warning(f"WebSocket Connection Closed: {e}, retrying...")
