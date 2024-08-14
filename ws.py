@@ -18,11 +18,11 @@ async def process(client: Client, data: dict, instance: Communication) -> dict:
     logger.onebot.success(f"Client Request Action Successfully: `{action}`.")
     params = data.get("params")
     method = getattr(instance, action)
-    # try:
-    resp = await method(echo=echo, **params)
-    # except Exception as e:
-    #     logger.onebot.error(f"Error when calling `{action}`: {e}")
-    #     return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+    try:
+        resp = await method(echo=echo, **params)
+    except Exception as e:
+        logger.onebot.error(f"Error when calling `{action}`: {e}")
+        return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
     return resp
 
 
