@@ -1,7 +1,7 @@
-from nonebot.adapters.onebot.v11 import MessageSegment
 from lagrange.client.client import Client
 from lagrange.client.message.elems import Text
 
+from onebot.utils.message_segment import MessageSegment
 from onebot.utils.message_chain import MessageConverter
 from onebot.uin import get_uid_by_uin
 

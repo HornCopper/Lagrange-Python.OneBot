@@ -1,8 +1,9 @@
 from typing import List, Union
-from lagrange.client.message.elems import Text, Image, At, Audio, Quote, MarketFace
+from lagrange.client.message.elems import Text, Image, At, Quote, MarketFace
 from lagrange.client.message.types import Element
 from lagrange.client.client import Client
-from nonebot.adapters.onebot.v11.message import MessageSegment
+
+from onebot.utils.message_segment import MessageSegment
 
 import io
 import httpx
