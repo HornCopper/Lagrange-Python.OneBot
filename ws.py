@@ -18,7 +18,11 @@ async def process(client: Client, data: dict, instance: Communication) -> dict:
     logger.onebot.success(f"Client Request Action Successfully: `{action}`.")
     params = data.get("params")
     method = getattr(instance, action)
+    # try:
     resp = await method(echo=echo, **params)
+    # except Exception as e:
+    #     logger.onebot.error(f"Error when calling `{action}`: {e}")
+    #     return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
     return resp
 
 
@@ -28,7 +32,7 @@ async def connect(client: Client):
     instance = Communication(client=client)
     while True:
         try:
-            async with websockets.connect(uri, extra_headers={"X-Self-Id": str(Config.uin)}) as websocket:
+            async with websockets.connect(uri, extra_headers={"X-Self-Id": str(client.uin)}) as websocket:
                 websocket_connection = websocket
                 logger.onebot.success("WebSocket Established")
 
@@ -43,8 +47,8 @@ async def connect(client: Client):
                     except websockets.exceptions.ConnectionClosed:
                         logger.onebot.warning("WebSocket Closed")
                         break
-                    except Exception as e:
-                        logger.onebot.error(f"Unhandled Exception in message handling: {e}")
+                    # except Exception as e:
+                    #     logger.onebot.error(f"Unhandled Exception in message handling: {e}")
 
         except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as e:
             logger.onebot.warning(f"WebSocket Connection Closed: {e}, retrying...")

@@ -13,9 +13,7 @@ from onebot.event.MessageEvent import (
     PrivateMessageEvent
 )
 from onebot.utils.message_chain import MessageConverter
-from onebot.uin import get_uid_by_uin, uid_dict
-
-from config import Config
+from onebot.cache import get_uid_by_uin, uid_uin_dict
 
 import json
 import ws
@@ -23,7 +21,7 @@ import ws
 async def GroupMessageEventHandler(client: Client, event: GroupMessage):
     sender_uid = get_uid_by_uin(event.uin)
     if not sender_uid:
-        uid_dict[event.uin] = event.uid
+        uid_uin_dict[event.uin] = event.uid
     if ws.websocket_connection:
         msgcvt = MessageConverter(client)
         content = msgcvt.convert_to_segments((event.msg_chain))
@@ -44,7 +42,7 @@ async def GroupMessageEventHandler(client: Client, event: GroupMessage):
             time=event.time, 
             group_id=event.grp_id, 
             user_id=event.uin, 
-            self_id=Config.uin, 
+            self_id=client.uin, 
             raw_message=event.msg, 
             message="".join(str(i) for i in content),
             sender=GroupMessageSender(
@@ -66,9 +64,9 @@ async def PrivateMessageEventHandler(client: Client, event: FriendMessage):
     sender_uid = get_uid_by_uin(event.from_uin)
     receiver_uid = get_uid_by_uin(event.to_uin)
     if not sender_uid:
-        uid_dict[event.from_uin] = event.from_uid
+        uid_uin_dict[event.from_uin] = event.from_uid
     if not receiver_uid:
-        uid_dict[event.to_uin] = event.to_uid
+        uid_uin_dict[event.to_uin] = event.to_uid
     if ws.websocket_connection:
         msgcvt = MessageConverter(client)
         content = msgcvt.convert_to_segments((event.msg_chain))

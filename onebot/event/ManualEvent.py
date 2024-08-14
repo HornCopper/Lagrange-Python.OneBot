@@ -2,11 +2,9 @@ from pydantic import BaseModel
 from typing import Literal
 from datetime import datetime
 
-from config import Config
-
 class Event(BaseModel):
     time: int = int(datetime.now().timestamp())
-    self_id: int = Config.uin
+    self_id: int = 0
     post_type: Literal["message", "notice", "request", "meta_event"] = ""
 
 class Sender(BaseModel):
