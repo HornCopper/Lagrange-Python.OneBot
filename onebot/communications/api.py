@@ -102,7 +102,7 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": None, "echo": echo}
     
     async def set_group_anonymous_ban(self, group_id: int, anonymous: Anonymous, anonymous_flag: str, flag: str, duration: int, echo: str) -> dict:
-        # Not Impl
+        # Not Impl Forever
         return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
     
     async def set_group_whole_ban(self, group_id: int, enable: bool, echo: str) -> dict:
@@ -114,7 +114,7 @@ class Communication:
         return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
     
     async def set_group_anonymous(self, group_id: int, enable: bool, echo: str) -> dict:
-        # Not Impl
+        # Not Impl Forever
         return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
     
     async def set_group_card(self, group_id: int, user_id: int, card: str, echo: str) -> dict:
