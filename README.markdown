@@ -64,3 +64,7 @@
 ## 贡献者
 
 [![][contrib-image]][contrib-link]
+
+[contrib-image]: https://contrib.rocks/image?repo=HornCopper/Lagrange-Python.OneBot
+
+[contrib-link]: https://github.com/HornCopper/Lagrange-Python.OneBot/graphs/contributors
