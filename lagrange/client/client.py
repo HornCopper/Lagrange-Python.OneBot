@@ -2,12 +2,27 @@ import os
 import struct
 import asyncio
 from io import BytesIO
-from typing import BinaryIO, Callable, Coroutine, List, Optional, Union, overload, Literal
+from typing import (
+    BinaryIO,
+    Callable,
+    Coroutine,
+    List,
+    Optional,
+    Union,
+    overload,
+    Literal,
+)
 
 from lagrange.info import AppInfo, DeviceInfo, SigInfo
 from lagrange.pb.message.msg_push import MsgPushBody
 from lagrange.pb.message.send import SendMsgRsp
 from lagrange.pb.service.comm import SendNudge
+from lagrange.pb.service.friend import (
+    GetFriendListRsp,
+    GetFriendListUin,
+    PBGetFriendListRequest,
+    propertys,
+)
 from lagrange.pb.service.group import (
     FetchGroupResponse,
     GetGrpMsgRsp,
@@ -49,8 +64,8 @@ from .message.decoder import parse_grp_msg
 from .message.elems import Audio, Image
 from .message.encoder import build_message
 from .message.types import Element
-from .models import UserInfo
-from .server_push.binder import PushDeliver
+from .models import UserInfo, BotFriend
+from .server_push import PushDeliver, bind_services
 from .wtlogin.sso import SSOPacket
 
 
@@ -61,7 +76,9 @@ class Client(BaseClient):
         app_info: AppInfo,
         device_info: DeviceInfo,
         sig_info: SigInfo,
-        sign_provider: Optional[Callable[[str, int, bytes], Coroutine[None, None, dict]]] = None,
+        sign_provider: Optional[
+            Callable[[str, int, bytes], Coroutine[None, None, dict]]
+        ] = None,
         use_ipv6=True,
     ):
         super().__init__(uin, app_info, device_info, sig_info, sign_provider, use_ipv6)
@@ -69,6 +86,7 @@ class Client(BaseClient):
         self._events = Events()
         self._push_deliver = PushDeliver(self)
         self._highway = HighWaySession(self)
+        bind_services(self._push_deliver)
 
     @property
     def events(self) -> Events:
@@ -100,7 +118,9 @@ class Client(BaseClient):
         else:
             raise AssertionError("siginfo not found, you must login first")
 
-    async def login(self, password: str = "", qrcode_path: Optional[str] = None) -> bool:
+    async def login(
+        self, password: str = "", qrcode_path: Optional[str] = None
+    ) -> bool:
         try:
             if self._sig.temp_pwd:
                 rsp = await self.easy_login()
@@ -235,7 +255,9 @@ class Client(BaseClient):
     async def down_friend_audio(self, audio: Audio) -> BytesIO:
         return await self._highway.download_audio(audio, uid=self.uid)
 
-    async def fetch_image_url(self, bus_type: Literal[10, 20], node: "IndexNode", uid=None, gid=None):
+    async def fetch_image_url(
+        self, bus_type: Literal[10, 20], node: "IndexNode", uid=None, gid=None
+    ):
         if bus_type == 10:
             return await self._get_pri_img_url(uid, node)
         elif bus_type == 20:
@@ -313,10 +335,68 @@ class Client(BaseClient):
         ), "return args not matched"
 
         rsp = list(
-            await asyncio.gather(*[parse_grp_msg(self, MsgPushBody.decode(i)) for i in payload.elems])
+            await asyncio.gather(
+                *[parse_grp_msg(self, MsgPushBody.decode(i)) for i in payload.elems]
+            )
         )
         if filter_deleted_msg:
             return [*filter(lambda msg: msg.rand != -1, rsp)]
+        return rsp
+
+    async def get_friend_list(self) -> List[BotFriend]:
+        nextuin_cache: List[GetFriendListUin] = []
+        rsp: List[BotFriend] = []
+        frist_send = GetFriendListRsp.decode(
+            (await self.send_oidb_svc(0xFD4, 1, PBGetFriendListRequest().encode())).data
+        )
+        properties: Optional[dict] = None
+        if frist_send.next:
+            nextuin_cache.append(frist_send.next)
+        for raw in frist_send.friend_list:
+            for j in raw.additional:
+                if j.type != 1:
+                    continue
+                properties = propertys(j.layer1.properties)
+                break
+            if properties is not None:
+                rsp.append(
+                    BotFriend(
+                        raw.uin,
+                        raw.uid,
+                        properties.get(20002),
+                        properties.get(103),
+                        properties.get(102),
+                        properties.get(27394),
+                    )
+                )
+
+        while nextuin_cache:
+            next = GetFriendListRsp.decode(
+                (
+                    await self.send_oidb_svc(
+                        0xFD4,
+                        1,
+                        PBGetFriendListRequest(next_uin=nextuin_cache.pop()).encode(),
+                    )
+                ).data
+            )
+            for raw in next.friend_list:
+                for j in raw.additional:
+                    properties = propertys(j.layer1.properties)
+                if properties is not None:
+                    rsp.append(
+                        BotFriend(
+                            raw.uin,
+                            raw.uid,
+                            properties.get(20002),
+                            properties.get(103),
+                            properties.get(102),
+                            properties.get(27394),
+                        )
+                    )
+            if next.next:
+                nextuin_cache.append(next.next)
+
         return rsp
 
     async def recall_grp_msg(self, grp_id: int, seq: int):
