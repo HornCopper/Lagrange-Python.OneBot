@@ -47,8 +47,8 @@ async def connect(client: Client):
                     except websockets.exceptions.ConnectionClosed:
                         logger.onebot.warning("WebSocket Closed")
                         break
-                    # except Exception as e:
-                    #     logger.onebot.error(f"Unhandled Exception in message handling: {e}")
+                    except Exception as e:
+                        logger.onebot.error(f"Unhandled Exception in message handling: {e}")
 
         except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as e:
             logger.onebot.warning(f"WebSocket Connection Closed: {e}, retrying...")

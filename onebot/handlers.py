@@ -24,7 +24,7 @@ async def GroupMessageEventHandler(client: Client, event: GroupMessage):
         uid_uin_dict[event.uin] = event.uid
     if ws.websocket_connection:
         msgcvt = MessageConverter(client)
-        content = msgcvt.convert_to_segments((event.msg_chain))
+        content = await msgcvt.convert_to_segments(event.msg_chain, "grp", group_id=event.grp_id)
         user_info = await client.get_user_info(event.uid)
         member_info = await client.get_grp_member_info(event.grp_id, event.uid)
         member_info = member_info.body[0]
@@ -69,7 +69,7 @@ async def PrivateMessageEventHandler(client: Client, event: FriendMessage):
         uid_uin_dict[event.to_uin] = event.to_uid
     if ws.websocket_connection:
         msgcvt = MessageConverter(client)
-        content = msgcvt.convert_to_segments((event.msg_chain))
+        content = await msgcvt.convert_to_segments(event.msg_chain, "friend")
         formated_event = PrivateMessageEvent(
             message_id=event.msg_id,
             time=event.timestamp, 

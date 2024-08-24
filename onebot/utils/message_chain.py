@@ -1,9 +1,11 @@
-from typing import List, Union
-from lagrange.client.message.elems import Text, Image, At, Quote, MarketFace
+from typing import List, Union, Literal
+
+from lagrange.client.message.elems import Text, Image, At, Quote, MarketFace, Audio
 from lagrange.client.message.types import Element
 from lagrange.client.client import Client
 
 from onebot.utils.message_segment import MessageSegment
+from onebot.utils.audio import mp3_to_silk
 
 import io
 import httpx
@@ -17,7 +19,11 @@ class MessageConverter:
     def __init__(self, client: Client):
         self.client = client
 
-    def convert_to_segments(self, elements: List[Element]) -> List[MessageSegment]:
+    async def convert_to_segments(self, elements: List[Element], message_type: Literal["grp", "friend"], group_id: int = 0) -> List[MessageSegment]:
+        """
+        将 Lagrange.Element 列表转换为 MessageSegment 列表
+        将 Lagrange 传入的消息转换为 OneBot 处理端接受的数据类型
+        """
         segments: List[MessageSegment] = []
         for element in elements:
             if isinstance(element, At):
@@ -26,13 +32,20 @@ class MessageConverter:
                 segments.append(MessageSegment.reply(str(element.seq)))
             elif isinstance(element, (Image, MarketFace)):
                 segments.append(MessageSegment.image(str(element.url)))
+            elif isinstance(element, Audio):
+                ...
+                segments.append(MessageSegment.record(str(element.file_key)))
             elif isinstance(element, Text):
                 segments.append(MessageSegment.text(element.text))
             else:
                 logger.onebot.error(f"Unknown message type: {element}")
         return segments
 
-    async def convert_to_elements(self, segments: List[MessageSegment], group_id: int = 0, user_id: str = "") -> List[Element]:
+    async def convert_to_elements(self, segments: List[MessageSegment], group_id: int = 0, uid: str = "") -> List[Element]:
+        """
+        将 MessageSegment 列表转换为 Lagrange.Element 列表
+        将 OneBot 处理端 收到的消息转换为 Lagrange 接受的数据类型
+        """
         elements: List[Element] = []
         for segment in segments:
             if segment.type == "at":
@@ -45,8 +58,17 @@ class MessageConverter:
                 if image_content:
                     if group_id:
                         elements.append(await self.client.upload_grp_image(image_content, group_id))
-                    elif user_id:
-                        elements.append(await self.client.upload_friend_image(image_content, uid=user_id))
+                    elif uid:
+                        elements.append(await self.client.upload_friend_image(image_content, uid=uid))
+            elif segment.type == "record":
+                voice_content = segment.data["file"]
+                voice_content = await self._process_voice_content(voice_content)
+                if voice_content:
+                    voice_content_silk = await mp3_to_silk(voice_content)
+                    if group_id:
+                        elements.append(await self.client.upload_grp_audio(voice_content_silk, group_id))
+                    elif uid:
+                        elements.append(await self.client.upload_friend_audio(voice_content_silk, uid=uid))
             elif segment.type == "text":
                 elements.append(Text(text=segment.data["text"]))
             else:
@@ -82,10 +104,10 @@ class MessageConverter:
             elif content.startswith("base64"):
                 return io.BytesIO(base64.b64decode(content[9:]))
             else:
-                raise ValueError(f"Unknown content type for Image `{content}`!")
+                raise ValueError(f"Unknown content type for Image {content}!")
         else:
-            raise ValueError(f"Unknown file type for Image `{content}`!")
-
+            raise ValueError(f"Unknown file type for Image {content}!")
+        
     async def _download_image_content(self, url: str) -> io.BytesIO:
         async with httpx.AsyncClient(follow_redirects=True, verify=False) as httpx_client:
             try:
@@ -104,4 +126,39 @@ class MessageConverter:
                 return io.BytesIO(file.read())
         else:
             logger.onebot.error(f"Local image not found: {local_path}")
+            return None
+
+    async def _process_voice_content(self, content: Union[str, bytes, io.BytesIO]) -> io.BytesIO:
+        if isinstance(content, (bytes, io.BytesIO)):
+            return io.BytesIO(content)
+        elif isinstance(content, str):
+            if content.startswith("http"):
+                return await self._download_voice_content(content)
+            elif content.startswith("file"):
+                return self._load_local_voice_content(content)
+            elif content.startswith("base64"):
+                return io.BytesIO(base64.b64decode(content[9:]))
+            else:
+                raise ValueError(f"Unknown content type for Voice {content}!")
+        else:
+            raise ValueError(f"Unknown file type for Voice {content}!")
+
+    async def _download_voice_content(self, url: str) -> io.BytesIO:
+        async with httpx.AsyncClient(follow_redirects=True, verify=False) as httpx_client:
+            try:
+                response = await httpx_client.get(url, timeout=600)
+                return io.BytesIO(response.content)
+            except httpx.TimeoutException:
+                logger.error(f"Voice download timed out: {url}")
+                return None
+
+    def _load_local_voice_content(self, file_path: str) -> io.BytesIO:
+        local_path = urllib.parse.urlparse(file_path).path
+        if local_path.startswith("/") and local_path[2] == ":":
+            local_path = local_path[1:]
+        if os.path.exists(local_path):
+            with open(local_path, "rb") as file:
+                return io.BytesIO(file.read())
+        else:
+            logger.error(f"Local voice not found: {local_path}")
             return None
