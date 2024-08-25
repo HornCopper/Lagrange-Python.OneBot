@@ -55,7 +55,7 @@
 ## 消息段
 - [x] Text
 - [x] Image
-- [ ] Audio
+- [x] Audio (Send Only)
 - [ ] File
 - [ ] At
 - [ ] MarketFace

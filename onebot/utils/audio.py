@@ -23,7 +23,14 @@ def pcm_to_silk(pcm_data: BinaryIO) -> BytesIO:
     silk_io.seek(0)
     return silk_io
 
+def is_silk(data: BinaryIO) -> bool:
+    header = data.read(10)
+    data.seek(0)
+    return header.startswith(b'#!SILK_V3')
+
 async def mp3_to_silk(mp3_data: BinaryIO) -> BytesIO:
+    if is_silk(mp3_data):
+        return mp3_data
     pcm_data = await mp3_to_pcm(mp3_data)
     silk_data = pcm_to_silk(pcm_data)
     return silk_data

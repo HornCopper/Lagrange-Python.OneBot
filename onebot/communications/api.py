@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Union, Literal, List
 
-from lagrange.client.client import Client
+from lagrange.client.client import Client, BotFriend
 from lagrange.client.message.elems import Text
 from lagrange.pb.service.group import GetGrpMemberInfoRspBody
 
@@ -167,8 +167,18 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": {"user_id": user_id, "nickname": info.name, "sex": sex, "age": age}, "echo": echo}
     
     async def get_friend_list(self, echo: str) -> dict:
-        # Not Impl
-        return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+        data = self.client.get_friend_list()
+        friend_list = []
+        for friend in data:
+            friend: BotFriend
+            friend_list.append(
+                {
+                    "user_id": friend.uin,
+                    "nickname": friend.nickname,
+                    "remark": friend.remark
+                }
+            )
+        return {"status": "ok", "retcode": 0, "data": friend_list, "echo": echo}
     
     async def get_group_member_info(self, group_id: int, user_id: int, echo: str, no_cache: bool = False, uid: str = "") -> dict:
         if uid == "":

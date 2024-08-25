@@ -19,7 +19,7 @@ class MessageConverter:
     def __init__(self, client: Client):
         self.client = client
 
-    async def convert_to_segments(self, elements: List[Element], message_type: Literal["grp", "friend"], group_id: int = 0) -> List[MessageSegment]:
+    async def convert_to_segments(self, elements: List[Element], message_type: Literal["grp", "friend"], group_id: int = 0, uid: str = "") -> List[MessageSegment]:
         """
         将 Lagrange.Element 列表转换为 MessageSegment 列表
         将 Lagrange 传入的消息转换为 OneBot 处理端接受的数据类型
@@ -33,8 +33,12 @@ class MessageConverter:
             elif isinstance(element, (Image, MarketFace)):
                 segments.append(MessageSegment.image(str(element.url)))
             elif isinstance(element, Audio):
-                ...
-                segments.append(MessageSegment.record(str(element.file_key)))
+                # RIP: wyapx 呜呜呜呜
+                if message_type == "grp":
+                    url = await self.client._highway.get_audio_down_url(element, gid=group_id)
+                elif message_type == "friend":
+                    url = await self.client._highway.get_audio_down_url(element, uid=uid)
+                segments.append(MessageSegment.record(file=url))
             elif isinstance(element, Text):
                 segments.append(MessageSegment.text(element.text))
             else:
