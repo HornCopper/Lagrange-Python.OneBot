@@ -1,5 +1,6 @@
 import json
 import re
+from urllib.parse import parse_qsl
 from typing import TYPE_CHECKING, Type, Tuple, TypeVar, Union, Dict
 
 from lagrange.client.message.decoder import parse_grp_msg, parse_friend_msg
@@ -13,6 +14,7 @@ from lagrange.pb.status.group import (
     MemberJoinRequest,
     MemberRecallMsg,
     GroupSub20Head,
+    PBGroupAlbumUpdate,
 )
 from lagrange.utils.binary.protobuf import proto_decode, ProtoStruct, proto_encode
 from lagrange.utils.binary.reader import Reader
@@ -29,6 +31,7 @@ from ..events.group import (
     GroupNudge,
     GroupReaction,
     GroupSign,
+    GroupAlbumUpdate,
 )
 from ..wtlogin.sso import SSOPacket
 from .log import logger
@@ -54,7 +57,7 @@ async def msg_push_handler(client: "Client", sso: SSOPacket):
     logger.debug("msg_push received, type: {}.{}".format(typ, sub_typ))
     if typ == 82:  # grp msg
         return await parse_grp_msg(client, pkg)
-    elif typ == 166:  # frd msg
+    elif typ in [166, 529]:  # frd msg
         return await parse_friend_msg(client, pkg)
     elif typ == 33:  # member joined
         pb = MemberChanged.decode(pkg.message.buf2)
@@ -85,8 +88,8 @@ async def msg_push_handler(client: "Client", sso: SSOPacket):
             return GroupMemberJoinRequest(
                 grp_id=inn.grp_id, uid=inn.uid, invitor_uid=inn.invitor_uid
             )
-    elif typ == 0x210:  # frd event
-        logger.debug("unhandled friend event: %s" % pkg)
+    elif typ == 0x210:  # friend event / group file upload notice event
+        logger.debug("unhandled friend event / group file upload notice event: %s" % pkg)  # TODO: paste
     elif typ == 0x2DC:  # grp event, 732
         if sub_typ == 20:  # nudge and group_sign(群打卡)
             if pkg.message:
@@ -105,7 +108,9 @@ async def msg_push_handler(client: "Client", sso: SSOPacket):
                         grp_id,
                         attrs["uin_str1"],
                         attrs["uin_str2"],
-                        attrs["action_str"],
+                        attrs["action_str"]
+                        if "action_str" in attrs
+                        else attrs["alt_str1"],  # ?
                         attrs["suffix_str"],
                         attrs,
                         pb.body.attrs_xml,
@@ -164,6 +169,18 @@ async def msg_push_handler(client: "Client", sso: SSOPacket):
                         emoji_count=body.detail.count,
                         type=body.detail.send_type,
                         total_operations=body.msg.total_operations,
+                    )
+                elif pb.flag == 23:  # 群幸运字符？
+                    pass
+                elif pb.flag == 37:  # 群相册上传（手Q专用:(）
+                    _, pb = unpack(
+                        pkg.message.buf2, PBGroupAlbumUpdate
+                    )  # 塞 就硬塞，可以把你的顾辉盒也给塞进来
+                    q = dict(parse_qsl(pb.body.args))
+                    return GroupAlbumUpdate(
+                        grp_id=pb.grp_id,
+                        timestamp=pb.timestamp,
+                        image_id=q["i"],
                     )
                 else:
                     raise ValueError(
