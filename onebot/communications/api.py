@@ -1,18 +1,25 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Literal, List
+from typing import Union, Literal, List, Optional
 
 from lagrange.client.client import Client, BotFriend
 from lagrange.client.message.elems import Text
 from lagrange.pb.service.group import GetGrpMemberInfoRspBody
 
 from onebot.utils.message_segment import MessageSegment
+from onebot.utils.random import generate_message_id
 from onebot.utils.message_chain import MessageConverter
+from onebot.utils.database import db
+from onebot.utils.datamodels import MessageEvent
 from onebot.event.ManualEvent import Anonymous
-from onebot.cache import get_uid_by_uin, save_msg, get_seq
+from onebot.event.MessageEvent import GroupMessageSender
+from onebot.cache import get_info
 
 import uuid
 import httpx
+import json
+
+from config import Config
 
 from .ManualInfo import GroupInfo
 
@@ -24,23 +31,43 @@ class Communication:
     async def send_group_msg(self, group_id: int, message: Union[list, str], echo: str, user_id: int = 0) -> dict:
         if isinstance(message, list):
             message = self.message_converter.parse_message(message, MessageSegment)
-            message = await self.message_converter.convert_to_elements(message, group_id)
+            message_ = await self.message_converter.convert_to_elements(message, group_id)
         elif isinstance(message, str):
-            message = [Text(message)]
-        seq = await self.client.send_grp_msg(msg_chain=message, grp_id=group_id)
-        msg_id = save_msg(seq, group_id)
-        return {"status": "ok", "retcode": 0, "data": {"message_id": msg_id}, "echo": echo}
+            message_ = [Text(message)]
+            message = message_
+        seq = await self.client.send_grp_msg(msg_chain=message_, grp_id=group_id)
+        message_id = generate_message_id()
+        msg_content = MessageEvent(
+            msg_id = message_id,
+            uin = self.client.uin,
+            uid = self.client.uid,
+            seq = seq,
+            grp_id = group_id,
+            msg_chain = (json.dumps(element.__dict__, ensure_ascii=False) for element in message)
+        )
+        db.save(msg_content)
+        return {"status": "ok", "retcode": 0, "data": {"message_id": message_id}, "echo": echo}
     
     async def send_private_msg(self, user_id: int, message: Union[list, str], echo: str, group_id: int = 0) -> dict:
-        uid = get_uid_by_uin(user_id)
+        uid = get_info(user_id)
         if not uid:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         if isinstance(message, list):
             message = self.message_converter.parse_message(message, MessageSegment)
-            message = await self.message_converter.convert_to_elements(self.client, message, uid)
+            message_ = await self.message_converter.convert_to_elements(message, message, uid)
         elif isinstance(message, str):
-            message = [Text(message)]
-        seq = await self.client.send_friend_msg(msg_chain=message, uid=uid) # 未使用`save_msg()` -> 干扰群消息存储
+            message_ = [Text(message)]
+        seq = await self.client.send_friend_msg(msg_chain=message_, uid=uid)
+        message_id = generate_message_id()
+        msg_content = MessageEvent(
+            msg_id = message_id,
+            uin = self.client.uin,
+            uid = self.client.uid,
+            seq = seq,
+            grp_id = group_id,
+            msg_chain = (json.dumps(element.__dict__, ensure_ascii=False) for element in message)
+        )
+        db.save(msg_content)
         return {"status": "ok", "retcode": 0, "data": {"message_id": seq}, "echo": echo}
     
     async def send_msg(
@@ -54,7 +81,9 @@ class Communication:
         method = getattr(self, f"send_{message_type}_msg")
         return await method(user_id=user_id, message=message, group_id=group_id, echo=echo)
     
-    async def get_group_info(self, group_id: int, cache: bool, echo: str) -> dict:
+    async def get_group_info(self, group_id: int, echo: str, no_cache: bool = False) -> dict:
+        if no_cache:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         data = await self.get_group_list(echo=echo)
         for group in data["data"]:
             if group_id == group["group_id"]:
@@ -75,15 +104,30 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": groups, "echo": echo}
 
     async def delete_msg(self, message_id: int, echo: str) -> dict:
-        seq, group_id = get_seq(message_id)
-        if (seq, group_id) == (None, None):
+        message_event: Optional[MessageEvent] = db.where_one(MessageEvent(), "msg_id = ?", message_id, default=None)
+        if message_event is None:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+        if message_event.grp_id == 0:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+        group_id = message_event.grp_id
+        seq = message_event.seq
         await self.client.recall_grp_msg(group_id, seq)
         return {"status": "ok", "retcode": 0, "data": None, "echo": echo}
     
     async def get_msg(self, message_id: int, echo: str) -> dict:
-        # Working
-        return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+        message_event: Optional[MessageEvent] = db.where_one(MessageEvent(), "msg_id = ?", message_id, default=None)
+        if message_event is None:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+        data = {
+            "message_type": "private",
+            "message_id": message_event.msg_id,
+            "real_id": message_event.msg_id,
+            "sender": GroupMessageSender(
+                user_id = message_event.uin,
+                nickname = message_event.nickname
+            ).model_dump()
+        }
+        return {"status": "failed", "retcode": 0, "data": data, "echo": echo}
     
     async def get_forward_msg(self, id: str, echo: str) -> dict:
         # Not Impl
@@ -118,7 +162,9 @@ class Communication:
         return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
     
     async def set_group_card(self, group_id: int, user_id: int, card: str, echo: str) -> dict:
-        uid = get_uid_by_uin(user_id)
+        uid = get_info(user_id)
+        if not uid:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         await self.client.rename_grp_member(group_id, uid, card)
         return {"status": "ok", "retcode": 0, "data": None, "echo": echo}
     
@@ -156,7 +202,9 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": {"user_id": self.client.uin, "nickname": info.name}, "echo": echo}
     
     async def get_stranger_info(self, user_id: int, echo: str, no_cache: bool = False) -> dict:
-        uid = get_uid_by_uin(user_id)
+        uid = get_info(user_id)
+        if not uid:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         info = await self.client.get_user_info(uid)
         sex = info.sex.name if info.sex.name != "notset" else "unknown"
         today = datetime.today()
@@ -182,7 +230,9 @@ class Communication:
     
     async def get_group_member_info(self, group_id: int, user_id: int, echo: str, no_cache: bool = False, uid: str = "") -> dict:
         if uid == "":
-            uid = get_uid_by_uin(user_id)
+            uid = get_info(user_id)
+            if not uid:
+                return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         member_info = await self.client.get_grp_member_info(group_id, uid)
         person_info = await self.get_stranger_info(user_id, echo)
         group_owner = not member_info.body[0].is_admin and member_info.body[0].permission == 2

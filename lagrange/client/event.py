@@ -28,12 +28,12 @@ class Events:
         return self._handle_map.pop(event)
 
     async def _task_exec(self, client: "Client", event: "BaseEvent", handler: EVENT_HANDLER):
-        try:
+        # try:
             await handler(client, event)
-        except Exception as e:
-            log.root.error(
-                "Unhandled exception on task {}".format(event), exc_info=e
-            )
+        # except Exception as e:
+        #     log.root.error(
+        #         "Unhandled exception on task {}".format(event), exc_info=e
+        #     )
 
     def emit(self, event: "BaseEvent", client: "Client"):
         typ = type(event)

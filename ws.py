@@ -15,14 +15,15 @@ async def process(client: Client, data: dict, instance: Communication) -> dict:
     if not hasattr(instance, action):
         logger.onebot.error(f"Client Request Action Failed: `{action}` Not Exists.")
         return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
-    logger.onebot.success(f"Client Request Action Successfully: `{action}`.")
+    logger.onebot.debug(f"Client Request Action Successfully: `{action}`.")
     params = data.get("params")
     method = getattr(instance, action)
-    try:
-        resp = await method(echo=echo, **params)
-    except Exception as e:
-        logger.onebot.error(f"Error when calling `{action}`: {e}")
-        return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+    # try:
+    resp = await method(echo=echo, **params)
+    logger.onebot.debug(f"Send Response: `{resp}`.")
+    # except Exception as e:
+    #     logger.onebot.error(f"Error when calling `{action}`: {e}")
+    #     return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
     return resp
 
 
@@ -32,9 +33,9 @@ async def connect(client: Client):
     instance = Communication(client=client)
     while True:
         try:
-            async with websockets.connect(uri, extra_headers={"X-Self-Id": str(client.uin)}) as websocket:
+            async with websockets.connect(uri, extra_headers={"X-Self-Id": str(client.uin)}, max_size=10*1024*1024) as websocket:
                 websocket_connection = websocket
-                logger.onebot.success("WebSocket Established")
+                logger.onebot.success("Reserved WebSocket Established")
 
                 while True:
                     try:
@@ -44,11 +45,11 @@ async def connect(client: Client):
                         rply = await process(client, rec, instance)
                         await websocket.send(json.dumps(rply, ensure_ascii=False))
 
-                    except websockets.exceptions.ConnectionClosed:
-                        logger.onebot.warning("WebSocket Closed")
+                    except websockets.exceptions.ConnectionClosed as e:
+                        logger.onebot.warning(f"WebSocket Closed：{e.code}")
                         break
-                    except Exception as e:
-                        logger.onebot.error(f"Unhandled Exception in message handling: {e}")
+                    # except Exception as e:
+                    #     logger.onebot.error(f"Unhandled Exception in message handling: {e}")
 
         except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as e:
             logger.onebot.warning(f"WebSocket Connection Closed: {e}, retrying...")

@@ -1,5 +1,6 @@
 import asyncio
 
+from lagrange.utils.log import install_loguru
 from lagrange.client.events.service import ServerKick
 from lagrange.client.client import Client
 from lagrange import Lagrange, msg_push_handler, server_kick_handler, log
@@ -10,9 +11,14 @@ from lagrange.client.events.group import (
 from lagrange.client.events.friend import (
     FriendMessage
 )
+
 from onebot.handlers import (
     GroupMessageEventHandler,
     PrivateMessageEventHandler
+)
+from onebot.utils.database import db, Database
+from onebot.utils.datamodels import (
+    MessageEvent
 )
 
 from ws import connect
@@ -25,7 +31,7 @@ class LagrangeOB11Client(Lagrange):
 
     async def run(self):
         with self.im as im:
-            self.client = Client(self.uin, self.info, im.device, im.sig_info, self.sign)
+            self.client = Client(self.uin, self.info, im.device, im.sig_info, self.sign, use_ipv6=Config.v6)
             for event, handler in self.events.items():
                 self.client.events.subscribe(event, handler)
             self.client.push_deliver.subscribe("trpc.msg.olpush.OlPushService.MsgPush", msg_push_handler)

@@ -9,13 +9,14 @@ logger = LoggerProvider()
 
 install_loguru()
 
-
 class Config(BaseModel):
     uin: int = 0
     protocol: Literal["windows", "macos", "linux"] = "linux"
     sign_server: str = ""
     ws_url: str = ""
     log_level: str = "INFO"
+    v6: bool = False
+    ignore_self: bool = True
 
 
 def yaml_to_class(yaml_str, cls):

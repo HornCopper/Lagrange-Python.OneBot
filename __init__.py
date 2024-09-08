@@ -17,6 +17,13 @@ ws_url: ""
 # 反向 WebSocket 地址
 
 log_level: "INFO"
+# 日志等级
+
+v6: True
+# 是否启用IPv6
+
+ignore_self: True
+# 群消息是否忽略自身消息
 """
 
 if not os.path.exists("./config.yml"):

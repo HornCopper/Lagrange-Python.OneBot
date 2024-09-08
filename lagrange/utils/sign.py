@@ -1,11 +1,8 @@
 import time
-import httpx
+import json
 
+from .httpcat import HttpCat
 from .log import log
-
-import logging
-
-logging.getLogger("httpx").disabled = True
 
 _logger = log.fork("sign_provider")
 
@@ -48,10 +45,6 @@ SIGN_PKG_LIST = [
     "OidbSvcTrpcTcp.0xf67_5",
 ]
 
-async def post_url(url, **kwargs):
-    async with httpx.AsyncClient(follow_redirects=True, verify=False) as client:
-        resp = await client.post(url, **kwargs)
-        return resp
 
 def sign_provider(upstream_url: str):
     async def get_sign(cmd: str, seq: int, buf: bytes) -> dict:
@@ -59,16 +52,17 @@ def sign_provider(upstream_url: str):
             return {}
 
         params = {"cmd": cmd, "seq": seq, "src": buf.hex()}
+        body = json.dumps(params).encode('utf-8')
         headers = {
             "Content-Type": "application/json"
         }
         start_time = time.time()
-        ret = await post_url(upstream_url, json=params, headers=headers)
+        ret = await HttpCat.request("POST", upstream_url, body=body, header=headers)
         _logger.debug(
             f"signed for [{cmd}:{seq}]({round((time.time() - start_time) * 1000, 2)}ms)"
         )
-        if ret.status_code != 200:
-            raise ConnectionError(ret.status_code, ret.body)
+        if ret.code != 200:
+            raise ConnectionError(ret.code, ret.body)
 
         return ret.json()["value"]
 

@@ -48,6 +48,7 @@ class Lagrange:
                 im.device,
                 im.sig_info,
                 self.sign,
+                use_ipv6=False
             )
             for event, handler in self.events.items():
                 self.client.events.subscribe(event, handler)

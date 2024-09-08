@@ -12,33 +12,34 @@ from onebot.event.MessageEvent import (
     GroupMessageEvent,
     PrivateMessageEvent
 )
+from onebot.utils.random import generate_message_id
+from onebot.utils.database import db
+from onebot.utils.datamodels import (
+    MessageEvent
+)
 from onebot.utils.message_chain import MessageConverter
-from onebot.cache import get_uid_by_uin, uid_uin_dict
+
+from config import Config
 
 import json
 import ws
 
 async def GroupMessageEventHandler(client: Client, event: GroupMessage):
-    sender_uid = get_uid_by_uin(event.uin)
-    if not sender_uid:
-        uid_uin_dict[event.uin] = event.uid
     if ws.websocket_connection:
         msgcvt = MessageConverter(client)
         content = await msgcvt.convert_to_segments(event.msg_chain, "grp", group_id=event.grp_id)
-        user_info = await client.get_user_info(event.uid)
-        member_info = await client.get_grp_member_info(event.grp_id, event.uid)
-        member_info = member_info.body[0]
-        group_owner = not member_info.is_admin and member_info.permission == 2
-        group_admin = member_info.is_admin
-        if group_owner:
-            role = "owner"
-        elif group_admin:
-            role = "admin"
-        else:
-            role = "member"
-        sex = user_info.sex.name if user_info.sex.name != "notset" else "unknown"
+        message_id = generate_message_id()
+        if Config.ignore_self and event.uin == client.uin:
+            return
+        event_content = event.__dict__
+        record_data = MessageEvent(
+            msg_id=message_id,
+            msg_chain=(json.dumps(element.__dict__, ensure_ascii=False) for element in event_content.pop("msg_chain")),
+            **(event_content)
+        )
+        db.save(record_data)
         formated_event = GroupMessageEvent(
-            message_id=event.seq,
+            message_id=message_id,
             time=event.time, 
             group_id=event.grp_id, 
             user_id=event.uin, 
@@ -47,11 +48,7 @@ async def GroupMessageEventHandler(client: Client, event: GroupMessage):
             message="".join(str(i) for i in content),
             sender=GroupMessageSender(
                 user_id=event.uin,
-                nickname=user_info.name,
-                sex=sex,
-                area=f"{user_info.country} {user_info.province} {user_info.city}",
-                level=str(member_info.level.num),
-                role=role
+                nickname=event.nickname
             )
         )
         await ws.websocket_connection.send(
@@ -61,15 +58,20 @@ async def GroupMessageEventHandler(client: Client, event: GroupMessage):
             )
 
 async def PrivateMessageEventHandler(client: Client, event: FriendMessage):
-    sender_uid = get_uid_by_uin(event.from_uin)
-    receiver_uid = get_uid_by_uin(event.to_uin)
-    if not sender_uid:
-        uid_uin_dict[event.from_uin] = event.from_uid
-    if not receiver_uid:
-        uid_uin_dict[event.to_uin] = event.to_uid
     if ws.websocket_connection:
         msgcvt = MessageConverter(client)
         content = await msgcvt.convert_to_segments(event.msg_chain, "friend")
+        message_id = generate_message_id()
+        event_content = event.__dict__
+        record_data = MessageEvent(
+            msg_id=message_id,
+            uid=event.from_uid,
+            seq=event.seq,
+            uin=event.from_uin,
+            msg=event.msg,
+            msg_chain=(json.dumps(element.__dict__, ensure_ascii=False) for element in event_content.pop("msg_chain"))
+        )
+        db.save(record_data)
         formated_event = PrivateMessageEvent(
             message_id=event.msg_id,
             time=event.timestamp, 
