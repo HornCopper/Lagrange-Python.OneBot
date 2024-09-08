@@ -16,7 +16,12 @@ from typing import (
 from lagrange.info import AppInfo, DeviceInfo, SigInfo
 from lagrange.pb.message.msg_push import MsgPushBody
 from lagrange.pb.message.send import SendMsgRsp
-from lagrange.pb.service.comm import SendNudge
+from lagrange.pb.service.comm import (
+    GetClientKeyRsp,
+    GetCookieRsp,
+    SendGrpBotHD,
+    SendNudge,
+)
 from lagrange.pb.service.friend import (
     GetFriendListRsp,
     GetFriendListUin,
@@ -46,10 +51,13 @@ from lagrange.pb.service.group import (
     SetEssenceRsp,
     GetInfoFromUidRsp,
     PBGetInfoFromUidReq,
+    PBGetGrpLastSeq,
+    GetGrpLastSeqRsp,
 )
 from lagrange.pb.service.oidb import OidbRequest, OidbResponse
 from lagrange.pb.highway.comm import IndexNode
 from lagrange.utils.binary.protobuf import proto_decode, proto_encode
+from lagrange.utils.httpcat import HttpCat
 from lagrange.utils.log import log
 from lagrange.utils.operator import timestamp
 
@@ -559,3 +567,72 @@ class Client(BaseClient):
             return UserInfo.from_pb(rsp.body[0])
         else:
             return [UserInfo.from_pb(body) for body in rsp.body]
+
+    async def set_grp_bot_hd(
+        self, grp_id: int, bot_id: int, data_1: str = "", data_2: str = ""
+    ):
+        await self.send_oidb_svc(
+            0x112E,
+            1,
+            SendGrpBotHD(
+                grp_id=grp_id, bot_id=bot_id, B_id=data_1, B_data=data_2
+            ).encode(),
+        )
+
+    async def set_c2c_bot_hd(self, bot_id: int, data_1: str = "", data_2: str = ""):
+        await self.send_oidb_svc(
+            0x112E,
+            1,
+            SendGrpBotHD(bot_id=bot_id, B_id=data_1, B_data=data_2).encode(),
+        )
+
+    async def get_group_last_seq(self, grp_id: int) -> int:
+        rsp = GetGrpLastSeqRsp.decode(
+            (
+                await self.send_oidb_svc(
+                    0x88D,
+                    0,
+                    PBGetGrpLastSeq.build(self.app_info.sub_app_id, grp_id).encode(),
+                )
+            ).data
+        )
+        if not rsp.body.args.seq:
+            raise AssertionError("No message found")
+        return rsp.body.args.seq
+
+    async def _get_client_key(self) -> str:
+        return GetClientKeyRsp.decode(
+            (await self.send_oidb_svc(0x102A, 1, proto_encode({}))).data
+        ).client_key
+
+    def _gtk_1(self, skey_or_pskey: str):
+        _hash = 5381
+        _len = len(skey_or_pskey)
+        for i in range(_len):
+            _hash += (_hash << 5) + ord(skey_or_pskey[i])
+        return _hash & 2147483647
+
+    async def get_cookies(self, domains: list[str]) -> List[str]:
+        """pskey"""
+        return [
+            i.value.decode()
+            for i in GetCookieRsp.decode(
+                (
+                    await self.send_oidb_svc(
+                        0x102A,
+                        0,
+                        proto_encode({1: domains}),  # type: ignore
+                    )
+                ).data
+            ).urls
+        ]
+
+    async def get_skey(self) -> str:
+        jump = "https%3A%2F%2Fh5.qzone.qq.com%2Fqqnt%2Fqzoneinpcqq%2Ffriend%3Frefresh%3D0%26clientuin%3D0%26darkMode%3D0&keyindex=19&random=2599"
+        url = f"https://ssl.ptlogin2.qq.com/jump?ptlang=1033&clientuin={self.uin}&clientkey={await self._get_client_key()}&u1={jump}"
+        resp = await HttpCat.request("GET", url, follow_redirect=False)
+        return resp.cookies["skey"]
+
+    async def get_csrf_token(self) -> int:
+        skey = await self.get_skey()
+        return self._gtk_1(skey)

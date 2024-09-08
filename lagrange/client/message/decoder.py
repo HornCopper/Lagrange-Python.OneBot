@@ -8,7 +8,9 @@ from lagrange.pb.message.rich_text import Elems, RichText
 
 from . import elems
 from .types import Element
+from lagrange.utils.binary.reader import Reader
 from lagrange.utils.binary.protobuf import proto_encode
+from lagrange.pb.message.rich_text.elems import GroupFileExtra, FileExtra
 from lagrange.pb.highway.comm import MsgInfo
 
 if TYPE_CHECKING:
@@ -36,6 +38,18 @@ def parse_friend_info(pkg: MsgPushBody) -> Tuple[int, str, int, str]:
 
 
 async def parse_msg_new(client: "Client", pkg: MsgPushBody) -> Sequence[Element]:
+    if not pkg.message or not pkg.message.body:
+        if pkg.content_head.sub_type == 4:
+            data = FileExtra.decode(pkg.message.buf2)
+            return [
+                elems.File.pri_paste_build(
+                    file_size=data.file.file_size,
+                    file_name=data.file.file_name,
+                    file_md5=data.file.file_md5,
+                    file_uuid=data.file.file_uuid,
+                    file_hash=data.file.file_hash,
+                )
+            ]
     rich: RichText = pkg.message.body
     if rich.ptt:
         ptt = rich.ptt
@@ -144,20 +158,41 @@ async def parse_msg_new(client: "Client", pkg: MsgPushBody) -> Sequence[Element]
                 index = extra.body[0].index
                 uid = client.uid
                 gid = pkg.response_head.rsp_grp.gid if common.bus_type == 20 else None
-                url = await client.fetch_image_url(bus_type=cast(Literal[10, 20], common.bus_type),
-                                                   node=index, uid=uid, gid=gid)
+                url = await client.fetch_image_url(
+                    bus_type=cast(Literal[10, 20], common.bus_type),
+                    node=index,
+                    uid=uid,
+                    gid=gid,
+                )
                 msg_chain.append(
                     elems.Image(
                         name=index.info.name,
                         size=index.info.size,
                         id=0,
                         md5=bytes.fromhex(index.info.hash),
-                        text=extra.biz_info.pic.summary if extra.biz_info.pic.summary else "[图片]",
+                        text=extra.biz_info.pic.summary
+                        if extra.biz_info.pic.summary
+                        else "[图片]",
                         width=index.info.width,
                         height=index.info.height,
                         url=url,
                         is_emoji=extra.biz_info.pic.biz_type != 0,
                         qmsg=None,
+                    )
+                )
+        elif raw.trans_elem:
+            elem_type, trans = raw.trans_elem.elem_type, raw.trans_elem.elem_value
+            if elem_type == 24:
+                reader = Reader(trans)
+                reader.read_bytes(1)
+                data = reader.read_bytes_with_length("u16", False)
+                file_extra = GroupFileExtra.decode(data)
+                msg_chain.append(
+                    elems.File.grp_paste_build(
+                        file_size=file_extra.inner.info.file_size,
+                        file_name=file_extra.inner.info.file_name,
+                        file_md5=file_extra.inner.info.file_md5,
+                        file_id=file_extra.inner.info.file_id
                     )
                 )
         elif raw.rich_msg:
@@ -173,23 +208,6 @@ async def parse_msg_new(client: "Client", pkg: MsgPushBody) -> Sequence[Element]
                     elems.Service(id=sid, raw=content, text=f"[service:{sid}]")
                 )
             ignore_next = True
-        # elif 16 in raw:  # extra
-        #     # nickname = unpack_dict(raw, "16.2", "")
-        #     pass
-        # elif 19 in raw:  # video
-        #     video = raw[19]
-        #     msg_chain.append({
-        #         "type": "video",
-        #         "text": "[视频]",
-        #         "name": unpack_dict(video, "3", "undefined"),
-        #         "id": unpack_dict(video, "1"),  # tlv struct? contain md5, filetype
-        #         "md5": unpack_dict(video, "2"),
-        #         "width": unpack_dict(video, "7"),
-        #         "height": unpack_dict(video, "8"),
-        #         "size": unpack_dict(video, "6")
-        #     })
-        # elif 37 in raw:  # unknown
-        #     pass
         elif raw.open_data:
             msg_chain.append(
                 elems.Raw(
@@ -247,6 +265,23 @@ async def parse_msg_new(client: "Client", pkg: MsgPushBody) -> Sequence[Element]
         #         "show_type": typ,
         #         "id": eid
         #     })
+        elif raw.video_file:
+            video = raw.video_file
+
+            msg_chain.append(
+                elems.Video(
+                    id=0,
+                    time=video.length,
+                    text="[视频]",
+                    name=video.name,
+                    size=video.size,
+                    file_key=video.id,
+                    md5=video.video_md5,
+                    width=video.width,
+                    height=video.height,
+                    qmsg=None,
+                )
+            )
         else:
             pass
             # print("unknown msg", raw)
