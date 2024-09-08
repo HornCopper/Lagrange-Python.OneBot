@@ -1,7 +1,9 @@
-from lagrange.client.client import Client
+from typing import Optional
 
+from lagrange.client.client import Client
 from lagrange.client.events.group import (
-    GroupMessage
+    GroupMessage,
+    GroupRecall
 )
 from lagrange.client.events.friend import (
     FriendMessage
@@ -10,7 +12,9 @@ from lagrange.client.events.friend import (
 from onebot.event.MessageEvent import (
     GroupMessageSender,
     GroupMessageEvent,
-    PrivateMessageEvent
+    PrivateMessageEvent,
+    GroupDecreaseEvent,
+    GroupRecallEvent
 )
 from onebot.utils.random import generate_message_id
 from onebot.utils.database import db
@@ -18,6 +22,7 @@ from onebot.utils.datamodels import (
     MessageEvent
 )
 from onebot.utils.message_chain import MessageConverter
+from onebot.cache import get_info
 
 from config import Config
 
@@ -80,6 +85,26 @@ async def PrivateMessageEventHandler(client: Client, event: FriendMessage):
             self_id=event.to_uin, 
             raw_message=event.msg, 
             message="".join(str(i) for i in content)
+        )
+        await ws.websocket_connection.send(
+            json.dumps(
+                msgcvt.convert_to_dict(formated_event),
+                ensure_ascii=False)
+            )
+        
+async def GroupRecallEventHandler(client: Client, event: GroupRecall):
+    if ws.websocket_connection:
+        msgcvt = MessageConverter(client)
+        uin = get_info(event.uid)
+        message_event: Optional[MessageEvent] = db.where_one(MessageEvent(), "seq = ? AND grp_id = ?", event.seq, event.grp_id, default=None)
+        if message_event is None:
+            return
+        formated_event = GroupRecallEvent(
+            self_id = client.uin,
+            group_id = event.grp_id,
+            operator_id = uin,
+            user_id = message_event.uin,
+            message_id = message_event.msg_id
         )
         await ws.websocket_connection.send(
             json.dumps(

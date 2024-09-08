@@ -46,7 +46,7 @@
 - [ ] set_group_add_request
 - [x] get_login_info
 - [x] get_stranger_info
-- [ ] get_friend_list
+- [x] get_friend_list
 - [x] get_group_member_info
 - [x] get_group_member_list
 - [ ] get_group_honor_info

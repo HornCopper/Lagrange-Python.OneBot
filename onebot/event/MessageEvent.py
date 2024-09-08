@@ -1,4 +1,5 @@
 from typing import Literal
+from pydantic import BaseModel
 
 from .ManualEvent import Event, Sender, Anonymous
 
@@ -19,6 +20,21 @@ class MessageEvent(Event):
     raw_message: str = ""
     font: int = 0
     sender: Sender = Sender()
+
+class GroupDecreaseEvent(Event):
+    notice_type: str = "group_decrease"
+    sub_type: Literal["leave", "kick", "kick_me"]
+    group_id: int = 0
+    operator_id: int = 0
+    user_id: int = 0
+
+class GroupRecallEvent(Event):
+    post_type: str = "notice"
+    notice_type: str = "group_recall"
+    group_id: int = 0
+    user_id: int = 0
+    operator_id: int = 0
+    message_id: int = 0
 
 class GroupMessageEvent(MessageEvent):
     message_type: Literal["group"] = "group"
