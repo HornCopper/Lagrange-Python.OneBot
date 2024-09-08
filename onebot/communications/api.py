@@ -132,6 +132,12 @@ class Communication:
     async def get_forward_msg(self, id: str, echo: str) -> dict:
         # Not Impl
         return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+    
+    async def get_cookies(self, domain: str, echo: str) -> dict:
+        data = await self.client.get_cookies([domain])
+        if len(data) == 0:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+        return {"status": "ok", "retcode": 0, "data": {"cookies": data[0]}, "echo": echo}
 
     async def send_like(self, user_id: int, times: int, echo: str) -> dict:
         # Not Impl

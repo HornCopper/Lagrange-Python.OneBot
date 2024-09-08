@@ -29,7 +29,7 @@
 - [x] get_group_info
 - [x] get_group_list
 - [x] delete_msg
-- [ ] get_msg
+- [x] get_msg
 - [ ] get_forward_msg
 - [ ] send_like
 - [x] set_group_kick
@@ -51,6 +51,7 @@
 - [x] get_group_member_list
 - [ ] get_group_honor_info
 - [x] get_image
+- [x] get_cookies
 
 ## 消息段
 - [x] Text
