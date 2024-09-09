@@ -7,7 +7,8 @@ from lagrange import Lagrange, msg_push_handler, server_kick_handler, log
 
 from lagrange.client.events.group import (
     GroupMessage,
-    GroupRecall
+    GroupRecall,
+    GroupMemberQuit
 )
 from lagrange.client.events.friend import (
     FriendMessage
@@ -16,6 +17,7 @@ from lagrange.client.events.friend import (
 from onebot.handlers import (
     GroupMessageEventHandler,
     PrivateMessageEventHandler,
+    GroupDecreaseEventHandler,
     GroupRecallEventHandler
 )
 
@@ -54,5 +56,6 @@ async def handle_kick(client: "Client", event: "ServerKick"):
 lag.log.set_level(Config.log_level)
 lag.subscribe(GroupMessage, GroupMessageEventHandler)
 lag.subscribe(FriendMessage, PrivateMessageEventHandler)
+lag.subscribe(GroupMemberQuit, GroupDecreaseEventHandler)
 lag.subscribe(GroupRecall, GroupRecallEventHandler)
 lag.subscribe(ServerKick, handle_kick)

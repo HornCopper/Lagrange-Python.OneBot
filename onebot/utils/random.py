@@ -4,7 +4,7 @@ import hashlib
 import random
 
 def generate_message_id() -> int:
-    seed_timestamp = int(datetime.now().timestamp()*1000)
+    seed_timestamp = int(datetime.now().timestamp()*10000000)
     random.seed(seed_timestamp)
     
     random_number = random.randint(0, 1_000_000_000)

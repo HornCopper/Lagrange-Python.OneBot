@@ -28,3 +28,15 @@ class MessageEvent(LagrangeModel):
     nickname: str = ""
     msg: str = ""
     msg_chain: list = []
+
+class RequestEvent(LagrangeModel):
+    TABLE_NAME: Optional[str] = "RequestEvent"
+    seq: int = 0
+    event_type: int = 0
+    state: Optional[int] = 0
+    group: Optional[int] = 0
+    uid: Optional[str] = ""
+    invitor_uid: Optional[str] = ""
+    # invitor: Optional[RspUser] = proto_field(6, default=None)
+    # operator: Optional[RspUser] = proto_field(7, default=None)
+    # comment: str = proto_field(9, default="")

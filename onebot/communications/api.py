@@ -35,7 +35,10 @@ class Communication:
         elif isinstance(message, str):
             message_ = [Text(message)]
             message = message_
-        seq = await self.client.send_grp_msg(msg_chain=message_, grp_id=group_id)
+        try:
+            seq = await self.client.send_grp_msg(msg_chain=message_, grp_id=group_id)
+        except AssertionError:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         message_id = generate_message_id()
         msg_content = MessageEvent(
             msg_id = message_id,
@@ -57,7 +60,10 @@ class Communication:
             message_ = await self.message_converter.convert_to_elements(message, message, uid)
         elif isinstance(message, str):
             message_ = [Text(message)]
-        seq = await self.client.send_friend_msg(msg_chain=message_, uid=uid)
+        try:
+            seq = await self.client.send_friend_msg(msg_chain=message_, uid=uid)
+        except AssertionError:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         message_id = generate_message_id()
         msg_content = MessageEvent(
             msg_id = message_id,
@@ -125,7 +131,8 @@ class Communication:
             "sender": GroupMessageSender(
                 user_id = message_event.uin,
                 nickname = message_event.nickname
-            ).model_dump()
+            ).model_dump(),
+            "message": json.loads(message_event.msg_chain)
         }
         return {"status": "failed", "retcode": 0, "data": data, "echo": echo}
     
