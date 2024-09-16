@@ -8,7 +8,8 @@ from lagrange import Lagrange, msg_push_handler, server_kick_handler, log
 from lagrange.client.events.group import (
     GroupMessage,
     GroupRecall,
-    GroupMemberQuit
+    GroupMemberQuit,
+    GroupMemberJoinRequest
 )
 from lagrange.client.events.friend import (
     FriendMessage
@@ -18,7 +19,8 @@ from onebot.handlers import (
     GroupMessageEventHandler,
     PrivateMessageEventHandler,
     GroupDecreaseEventHandler,
-    GroupRecallEventHandler
+    GroupRecallEventHandler,
+    GroupRequestEventHandler
 )
 
 from ws import connect
@@ -58,4 +60,5 @@ lag.subscribe(GroupMessage, GroupMessageEventHandler)
 lag.subscribe(FriendMessage, PrivateMessageEventHandler)
 lag.subscribe(GroupMemberQuit, GroupDecreaseEventHandler)
 lag.subscribe(GroupRecall, GroupRecallEventHandler)
+# lag.subscribe(GroupMemberJoinRequest, GroupRequestEventHandler) # 如写 写了报错
 lag.subscribe(ServerKick, handle_kick)

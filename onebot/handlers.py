@@ -11,6 +11,9 @@ from lagrange.client.events.group import (
 from lagrange.client.events.friend import (
     FriendMessage
 )
+from lagrange.pb.service.group import (
+    FetchGrpRspBody
+)
 
 from onebot.event.MessageEvent import (
     GroupMessageSender,
@@ -18,8 +21,8 @@ from onebot.event.MessageEvent import (
     PrivateMessageEvent
 )
 from onebot.event.NoticeEvent import (
-    GroupDecreaseEvent,
-    GroupRecallEvent
+    GroupDecreaseNoticeEvent,
+    GroupRecallNoticeEvent
 )
 from onebot.event.RequestEvent import (
     GroupRequestEvent
@@ -49,7 +52,7 @@ def init_handler(func):
 @init_handler
 async def GroupMessageEventHandler(client: Client, converter: MessageConverter, event: GroupMessage):
     content = await converter.convert_to_segments(event.msg_chain, "grp", group_id=event.grp_id)
-    message_id = generate_message_id()
+    message_id = generate_message_id(event.grp_id, event.seq)
     if Config.ignore_self and event.uin == client.uin:
         return
     event_content = event.__dict__
@@ -84,7 +87,7 @@ async def PrivateMessageEventHandler(client: Client, converter: MessageConverter
     if event.msg.startswith("[json"):
         return
     content = await converter.convert_to_segments(event.msg_chain, "friend")
-    message_id = generate_message_id()
+    message_id = generate_message_id(event.from_uin, event.seq)
     event_content = event.__dict__
     record_data = MessageEvent(
         msg_id=message_id,
@@ -119,7 +122,7 @@ async def GroupDecreaseEventHandler(client: Client, converter: MessageConverter,
     operator_id = get_info(event.operator_uid)
     if operator_id == None:
         operator_id = 0
-    formated_event = GroupDecreaseEvent(
+    formated_event = GroupDecreaseNoticeEvent(
         self_id = client.uin,
         sub_type = sub_type,
         group_id = event.grp_id,
@@ -139,7 +142,7 @@ async def GroupRecallEventHandler(client: Client, converter: MessageConverter, e
     message_event: Optional[MessageEvent] = db.where_one(MessageEvent(), "seq = ? AND grp_id = ?", event.seq, event.grp_id, default=None)
     if message_event is None:
         return
-    formated_event = GroupRecallEvent(
+    formated_event = GroupRecallNoticeEvent(
         self_id = client.uin,
         group_id = event.grp_id,
         operator_id = uin,
@@ -155,11 +158,15 @@ async def GroupRecallEventHandler(client: Client, converter: MessageConverter, e
 
 @init_handler
 async def GroupRequestEventHandler(client: Client, converter: MessageConverter, event: GroupMemberJoinRequest):
-    requests_20 = await client.fetch_grp_request()
-    for request in requests_20.requests:
-        data = ...
+    requests = await client.fetch_grp_request()
+    request: FetchGrpRspBody = requests.requests[0]
     formated_event = GroupRequestEvent(
-        
+        self_id = client.uin,
+        sub_type = "add" if event.uid != client.uid else "invite",
+        group_id = event.grp_id,
+        user_id = get_info(request.target.uid),
+        comment = request.comment,
+        flag = str(request.seq) + "-" + str(request.group.grp_id) + "-" + str(request.event_type) 
     )
     await ws.websocket_connection.send(
         json.dumps(

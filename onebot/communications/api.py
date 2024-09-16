@@ -39,7 +39,7 @@ class Communication:
             seq = await self.client.send_grp_msg(msg_chain=message_, grp_id=group_id)
         except AssertionError:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
-        message_id = generate_message_id()
+        message_id = generate_message_id(group_id, seq)
         msg_content = MessageEvent(
             msg_id = message_id,
             uin = self.client.uin,
@@ -64,7 +64,7 @@ class Communication:
             seq = await self.client.send_friend_msg(msg_chain=message_, uid=uid)
         except AssertionError:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
-        message_id = generate_message_id()
+        message_id = generate_message_id(user_id, seq)
         msg_content = MessageEvent(
             msg_id = message_id,
             uin = self.client.uin,
