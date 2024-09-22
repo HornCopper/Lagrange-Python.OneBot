@@ -1,6 +1,6 @@
 [project]
 name = "lagrange-python"
-version = "0.1.1"
+version = "0.1.2"
 description = "An Python Implementation of NTQQ PC Protocol"
 authors = [
     {name="linwenxuan05"},
@@ -45,3 +45,19 @@ dev = [
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+exclude = ["pdm_build.py"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "UP", "C", "T", "Q"]
+ignore = ["E402", "F403", "F405", "C901", "UP037"]
+
+[tool.pyright]
+pythonPlatform = "All"
+pythonVersion = "3.9"
+typeCheckingMode = "basic"
+reportShadowedImports = false
+disableBytesTypePromotions = true
