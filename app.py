@@ -1,14 +1,14 @@
 import asyncio
 
-from lagrange.utils.log import install_loguru
 from lagrange.client.events.service import ServerKick
 from lagrange.client.client import Client
-from lagrange import Lagrange, msg_push_handler, server_kick_handler, log
+from lagrange import Lagrange, log
 
 from lagrange.client.events.group import (
     GroupMessage,
     GroupRecall,
     GroupMemberQuit,
+    GroupInvite,
     GroupMemberJoinRequest
 )
 from lagrange.client.events.friend import (
@@ -22,9 +22,18 @@ from onebot.handlers import (
     GroupRecallEventHandler,
     GroupRequestEventHandler
 )
+from onebot.utils.database import db
+from onebot.utils.datamodels import UserInformation
 
 from ws import connect
 from config import Config, logger
+
+async def update_friend_data(client: Client):
+    friend_list_data = await client.get_friend_list()
+    for each_friend in friend_list_data:
+        if db.where_one(UserInformation(), "uin = ?", each_friend.uin, default=None) is not None:
+            continue
+        db.save(UserInformation(uin=each_friend.uin, uid=each_friend.uid))
 
 
 class LagrangeOB11Client(Lagrange):
@@ -36,13 +45,12 @@ class LagrangeOB11Client(Lagrange):
             self.client = Client(self.uin, self.info, im.device, im.sig_info, self.sign, use_ipv6=Config.v6)
             for event, handler in self.events.items():
                 self.client.events.subscribe(event, handler)
-            self.client.push_deliver.subscribe("trpc.msg.olpush.OlPushService.MsgPush", msg_push_handler)
-            self.client.push_deliver.subscribe("trpc.qq_new_tech.status_svc.StatusService.KickNT", server_kick_handler)
             self.client.connect()
             status = await self.login(self.client)
         if not status:
             log.login.error("Login failed")
             return
+        await update_friend_data(self.client)
         await asyncio.create_task(connect(self.client))
         await self.client.wait_closed()
 
@@ -60,5 +68,6 @@ lag.subscribe(GroupMessage, GroupMessageEventHandler)
 lag.subscribe(FriendMessage, PrivateMessageEventHandler)
 lag.subscribe(GroupMemberQuit, GroupDecreaseEventHandler)
 lag.subscribe(GroupRecall, GroupRecallEventHandler)
-# lag.subscribe(GroupMemberJoinRequest, GroupRequestEventHandler) # 如写 写了报错
+lag.subscribe(GroupInvite, GroupRequestEventHandler)
+lag.subscribe(GroupMemberJoinRequest, GroupRequestEventHandler)
 lag.subscribe(ServerKick, handle_kick)

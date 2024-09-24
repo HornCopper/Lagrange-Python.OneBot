@@ -11,7 +11,8 @@ import sqlite3
 
 from .datamodels import (
     LagrangeModel,
-    MessageEvent
+    MessageEvent,
+    UserInformation
 )
 
 class Database:
@@ -140,7 +141,6 @@ class Database:
             condition = f"id = {model.id}"
         if not condition and not allow_empty:
             raise ValueError("删除操作必须提供条件")
-        print(f"DELETE FROM {table_name} WHERE {condition}")
         try:
             self.cursor.execute(f"DELETE FROM {table_name} WHERE {condition}", args)
         except sqlite3.ProgrammingError:
@@ -222,4 +222,4 @@ class Database:
     BYTES_PREFIX = "PICKLE_BYTES_"
 
 db = Database(f"./onebot/data/lagrange-{Config.uin}.db")
-db.auto_migrate(MessageEvent())
+db.auto_migrate(MessageEvent(), UserInformation())

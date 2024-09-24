@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, Any, Union, Optional, Iterable, Tuple
 from typing_extensions import Self
 
-def b2s(b: Optional[bool]) -> Optional[str]:
+def b2s(b: Optional[bool]) -> str | None:
     """转换布尔值为字符串。"""
     return b if b is None else str(b).lower()
 
@@ -48,7 +48,7 @@ def unescape(s: str) -> str:
     )
 
 class MessageSegment:
-    def __init__(self, type: str, data: Dict[str, Any] = None):
+    def __init__(self, type: str, data: Dict[str, Any] = {}):
         self.type = type
         self.data = data or {}
 

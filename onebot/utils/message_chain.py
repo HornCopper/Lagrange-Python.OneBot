@@ -1,4 +1,5 @@
-from typing import List, Union, Literal
+from typing import List, Literal, Type
+from urllib.parse import urlparse
 
 from lagrange.client.message.elems import Text, Image, At, Quote, MarketFace, Audio
 from lagrange.client.message.types import Element
@@ -9,7 +10,6 @@ from onebot.utils.audio import mp3_to_silk
 
 import io
 import httpx
-import urllib
 import os
 import base64
 
@@ -29,7 +29,7 @@ class MessageConverter:
             if isinstance(element, At):
                 segments.append(MessageSegment.at(str(element.uin)))
             elif isinstance(element, Quote):
-                segments.append(MessageSegment.reply(str(element.seq)))
+                segments.append(MessageSegment.reply(int(str(element.seq))))
             elif isinstance(element, (Image, MarketFace)):
                 segments.append(MessageSegment.image(str(element.url)))
             elif isinstance(element, Audio):
@@ -53,9 +53,11 @@ class MessageConverter:
         elements: List[Element] = []
         for segment in segments:
             if segment.type == "at":
-                elements.append(At(uin=int(segment.data["qq"])))
+                elements.append(At(uin=int(int(segment.data["qq"])))) # type: ignore
+                # Not Support Yet
             elif segment.type == "reply":
-                elements.append(Quote(seq=int(segment.data["id"])))
+                elements.append(Quote(seq=int(segment.data["id"]))) # type: ignore
+                # Not Support Yet
             elif segment.type == "image":
                 image_content = segment.data["file"]
                 image_content = await self._process_image_content(image_content)
@@ -79,13 +81,13 @@ class MessageConverter:
                 logger.onebot.error(f"Unknown message type: {segment}")
         return elements
 
-    def parse_message(self, messages: List[str], target_type: Union[Element, MessageSegment]) -> List[Union[Element, MessageSegment]]:
+    def parse_message(self, messages: List[dict], target_type: Type[Element] | Type[MessageSegment]) -> List[Element | MessageSegment]:
         parsed_messages = []
         for message in messages:
             if target_type == MessageSegment:
                 parsed_messages.append(MessageSegment(**message))
-            elif target_type == Element:
-                parsed_messages.append(Element(message))
+            # elif target_type == Element:
+            #     parsed_messages.append(Element(message))
         return parsed_messages
 
     def convert_to_dict(self, obj):
@@ -97,8 +99,8 @@ class MessageConverter:
             result[key] = self.convert_to_dict(value) if hasattr(value, "__dict__") else value
         return result
 
-    async def _process_image_content(self, content: Union[str, bytes, io.BytesIO]) -> io.BytesIO:
-        if isinstance(content, (bytes, io.BytesIO)):
+    async def _process_image_content(self, content: str | bytes | io.BytesIO) -> io.BytesIO | None:
+        if isinstance(content, bytes):
             return io.BytesIO(content)
         elif isinstance(content, str):
             if content.startswith("http"):
@@ -112,7 +114,7 @@ class MessageConverter:
         else:
             raise ValueError(f"Unknown file type for Image {content}!")
         
-    async def _download_image_content(self, url: str) -> io.BytesIO:
+    async def _download_image_content(self, url: str) -> io.BytesIO | None:
         async with httpx.AsyncClient(follow_redirects=True, verify=False) as httpx_client:
             try:
                 response = await httpx_client.get(url, timeout=600)
@@ -121,8 +123,8 @@ class MessageConverter:
                 logger.onebot.error(f"Image download timed out: {url}")
                 return None
 
-    def _load_local_image_content(self, file_path: str) -> io.BytesIO:
-        local_path = urllib.parse.urlparse(file_path).path
+    def _load_local_image_content(self, file_path: str) -> io.BytesIO | None:
+        local_path = urlparse(file_path).path
         if local_path.startswith("/") and local_path[2] == ":":
             local_path = local_path[1:]
         if os.path.exists(local_path):
@@ -132,8 +134,8 @@ class MessageConverter:
             logger.onebot.error(f"Local image not found: {local_path}")
             return None
 
-    async def _process_voice_content(self, content: Union[str, bytes, io.BytesIO]) -> io.BytesIO:
-        if isinstance(content, (bytes, io.BytesIO)):
+    async def _process_voice_content(self, content: str | bytes | io.BytesIO) -> io.BytesIO | None:
+        if isinstance(content, bytes):
             return io.BytesIO(content)
         elif isinstance(content, str):
             if content.startswith("http"):
@@ -147,22 +149,22 @@ class MessageConverter:
         else:
             raise ValueError(f"Unknown file type for Voice {content}!")
 
-    async def _download_voice_content(self, url: str) -> io.BytesIO:
+    async def _download_voice_content(self, url: str) -> io.BytesIO | None:
         async with httpx.AsyncClient(follow_redirects=True, verify=False) as httpx_client:
             try:
                 response = await httpx_client.get(url, timeout=600)
                 return io.BytesIO(response.content)
             except httpx.TimeoutException:
-                logger.error(f"Voice download timed out: {url}")
+                logger.onebot.error(f"Voice download timed out: {url}")
                 return None
 
-    def _load_local_voice_content(self, file_path: str) -> io.BytesIO:
-        local_path = urllib.parse.urlparse(file_path).path
+    def _load_local_voice_content(self, file_path: str) -> io.BytesIO | None:
+        local_path = urlparse(file_path).path
         if local_path.startswith("/") and local_path[2] == ":":
             local_path = local_path[1:]
         if os.path.exists(local_path):
             with open(local_path, "rb") as file:
                 return io.BytesIO(file.read())
         else:
-            logger.error(f"Local voice not found: {local_path}")
+            logger.onebot.error(f"Local voice not found: {local_path}")
             return None

@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Literal, List, Optional
+from typing import Any, Literal, List, Tuple
 
 from lagrange.client.client import Client, BotFriend
 from lagrange.client.message.elems import Text
@@ -28,7 +28,7 @@ class Communication:
         self.client = client
         self.message_converter = MessageConverter(self.client)
     
-    async def send_group_msg(self, group_id: int, message: Union[list, str], echo: str, user_id: int = 0) -> dict:
+    async def send_group_msg(self, group_id: int, message: list | str, echo: str, user_id: int = 0) -> dict:
         if isinstance(message, list):
             message = self.message_converter.parse_message(message, MessageSegment)
             message_ = await self.message_converter.convert_to_elements(message, group_id)
@@ -36,7 +36,7 @@ class Communication:
             message_ = [Text(message)]
             message = message_
         try:
-            seq = await self.client.send_grp_msg(msg_chain=message_, grp_id=group_id)
+            seq = await self.client.send_grp_msg(msg_chain=message_, grp_id=group_id) # type: ignore
         except AssertionError:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         message_id = generate_message_id(group_id, seq)
@@ -46,22 +46,22 @@ class Communication:
             uid = self.client.uid,
             seq = seq,
             grp_id = group_id,
-            msg_chain = (json.dumps(element.__dict__, ensure_ascii=False) for element in message)
+            msg_chain = [json.dumps(element.__dict__, ensure_ascii=False) for element in message]
         )
         db.save(msg_content)
         return {"status": "ok", "retcode": 0, "data": {"message_id": message_id}, "echo": echo}
     
-    async def send_private_msg(self, user_id: int, message: Union[list, str], echo: str, group_id: int = 0) -> dict:
+    async def send_private_msg(self, user_id: int, message: list | str, echo: str, group_id: int = 0) -> dict:
         uid = get_info(user_id)
         if not uid:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         if isinstance(message, list):
             message = self.message_converter.parse_message(message, MessageSegment)
-            message_ = await self.message_converter.convert_to_elements(message, message, uid)
+            message_ = await self.message_converter.convert_to_elements(message, 0, str(uid))
         elif isinstance(message, str):
             message_ = [Text(message)]
         try:
-            seq = await self.client.send_friend_msg(msg_chain=message_, uid=uid)
+            seq = await self.client.send_friend_msg(msg_chain=message_, uid=str(uid)) # type: ignore
         except AssertionError:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         message_id = generate_message_id(user_id, seq)
@@ -71,7 +71,7 @@ class Communication:
             uid = self.client.uid,
             seq = seq,
             grp_id = group_id,
-            msg_chain = (json.dumps(element.__dict__, ensure_ascii=False) for element in message)
+            msg_chain = [(json.dumps(element.__dict__, ensure_ascii=False) for element in message)]
         )
         db.save(msg_content)
         return {"status": "ok", "retcode": 0, "data": {"message_id": seq}, "echo": echo}
@@ -80,7 +80,7 @@ class Communication:
             self, 
             user_id: int, 
             message_type: Literal["group", "private"], 
-            message: Union[list, str],
+            message: list | str,
             echo: str,
             group_id: int = 0
         ) -> dict:
@@ -110,7 +110,7 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": groups, "echo": echo}
 
     async def delete_msg(self, message_id: int, echo: str) -> dict:
-        message_event: Optional[MessageEvent] = db.where_one(MessageEvent(), "msg_id = ?", message_id, default=None)
+        message_event: MessageEvent | Any = db.where_one(MessageEvent(), "msg_id = ?", message_id, default=None)
         if message_event is None:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         if message_event.grp_id == 0:
@@ -121,7 +121,7 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": None, "echo": echo}
     
     async def get_msg(self, message_id: int, echo: str) -> dict:
-        message_event: Optional[MessageEvent] = db.where_one(MessageEvent(), "msg_id = ?", message_id, default=None)
+        message_event: MessageEvent | Any = db.where_one(MessageEvent(), "msg_id = ?", message_id, default=None)
         if message_event is None:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         data = {
@@ -132,7 +132,7 @@ class Communication:
                 user_id = message_event.uin,
                 nickname = message_event.nickname
             ).model_dump(),
-            "message": json.loads(message_event.msg_chain)
+            "message": [json.loads(chain) for chain in message_event.msg_chain]
         }
         return {"status": "failed", "retcode": 0, "data": data, "echo": echo}
     
@@ -178,7 +178,7 @@ class Communication:
         uid = get_info(user_id)
         if not uid:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
-        await self.client.rename_grp_member(group_id, uid, card)
+        await self.client.rename_grp_member(group_id, str(uid), card)
         return {"status": "ok", "retcode": 0, "data": None, "echo": echo}
     
     async def set_group_name(self, group_id: int, group_name: str, echo: str) -> dict:
@@ -203,12 +203,20 @@ class Communication:
             self, 
             echo: str,
             flag: str = "", 
-            sub_type: Literal["add", "invite"] = "",
+            sub_type: Literal["add", "invite"] = "invite",
             approve: bool = False, 
             reason: str = ""
         ) -> dict:
-        # Working
-        return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+        data = flag.split("-")
+        group_id = int(data[0])
+        seq = int(data[1])
+        ev_type = int(data[2])
+        _sub_type = str(data[3])
+        if sub_type != _sub_type:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+        action = 1 if approve else 2
+        await self.client.set_grp_request(group_id, seq, ev_type, action, reason)
+        return {"status": "ok", "retcode": 0, "data": None, "echo": echo}
     
     async def get_login_info(self, echo: str) -> dict:
         info = await self.client.get_user_info(self.client.uid)
@@ -218,7 +226,7 @@ class Communication:
         uid = get_info(user_id)
         if not uid:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
-        info = await self.client.get_user_info(uid)
+        info = await self.client.get_user_info(str(uid))
         sex = info.sex.name if info.sex.name != "notset" else "unknown"
         today = datetime.today()
         birthday = info.birthday
@@ -228,7 +236,7 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": {"user_id": user_id, "nickname": info.name, "sex": sex, "age": age}, "echo": echo}
     
     async def get_friend_list(self, echo: str) -> dict:
-        data = self.client.get_friend_list()
+        data = await self.client.get_friend_list()
         friend_list = []
         for friend in data:
             friend: BotFriend
@@ -241,12 +249,11 @@ class Communication:
             )
         return {"status": "ok", "retcode": 0, "data": friend_list, "echo": echo}
     
-    async def get_group_member_info(self, group_id: int, user_id: int, echo: str, no_cache: bool = False, uid: str = "") -> dict:
-        if uid == "":
-            uid = get_info(user_id)
-            if not uid:
-                return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
-        member_info = await self.client.get_grp_member_info(group_id, uid)
+    async def get_group_member_info(self, group_id: int, user_id: int, echo: str, no_cache: bool = False) -> dict:
+        uid = get_info(user_id)
+        if not uid:
+            return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
+        member_info = await self.client.get_grp_member_info(group_id, str(uid))
         person_info = await self.get_stranger_info(user_id, echo)
         group_owner = not member_info.body[0].is_admin and member_info.body[0].permission == 2
         group_admin = member_info.body[0].is_admin
@@ -256,6 +263,10 @@ class Communication:
             role = "admin"
         else:
             role = "member"
+        if member_info.body[0].level is None:
+            level = "0"
+        else:
+            level = str(member_info.body[0].level.num)
         return {
             "status": "ok", 
             "retcode": 0, 
@@ -264,7 +275,7 @@ class Communication:
                 "card": "", 
                 "join_time": member_info.body[0].joined_time,
                 "last_sent_time": member_info.body[0].last_seen,
-                "level": str(member_info.body[0].level.num),
+                "level": level,
                 "role": role,
                 "unfriendly": False,
                 "title": "",
@@ -278,11 +289,16 @@ class Communication:
     async def get_group_member_list(self, group_id: int, echo: str, no_cache: bool = False) -> dict:
         group_members_resp: List[GetGrpMemberInfoRspBody] = []
         group_members_data = []
+        next_key = ""
         while True:
-            rsp = await self.client.get_grp_members()
+            rsp = await self.client.get_grp_members(grp_id=group_id, next_key=next_key)
+            next_key: str = rsp.next_key # type: ignore
+            # 学会了怎么解 Protobuf 再说（
             if len(rsp.body) == 0:
                 break
-            group_members_resp.append(rsp.body)
+            group_members_resp.extend(rsp.body)
+            if next_key is None:
+                break
         for group_member_info_resp in group_members_resp:
             group_member_info_resp: GetGrpMemberInfoRspBody
             group_owner = not group_member_info_resp.is_admin and group_member_info_resp.permission == 2
@@ -293,20 +309,23 @@ class Communication:
                 role = "admin"
             else:
                 role = "member"
-            person_info_resp = await self.get_stranger_info(echo=echo, uid=group_member_info_resp.account.uid)
+            if group_member_info_resp.level is None:
+                level = "0"
+            else:
+                level = str(group_member_info_resp.level.num)
             group_members_data.append(
                 {
                     "group_id": group_id, 
                     "card": "", 
                     "join_time": group_member_info_resp.joined_time,
                     "last_sent_time":group_member_info_resp.last_seen,
-                    "level": str(group_member_info_resp.level.num),
+                    "level": level,
                     "role": role,
                     "unfriendly": False,
                     "title": "",
                     "title_expire_time": 0,
                     "card_changeable": True,
-                    **(person_info_resp["data"])
+                    "user_id": group_member_info_resp.account.uin,
                 }
             )
         return {"status": "ok", "retcode": 0, "data": group_members_data, "echo": echo}
@@ -320,16 +339,16 @@ class Communication:
         # Not Impl
         return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
     
-    async def get_image(self, file: str, echo: str) -> dict:
+    async def get_image(self, file: str, echo: str) -> str:
         file_format, file_content = await self._get_image_type(file)
         with open(f"./onebot/images/{self._get_uuid()}.{file_format}", "wb") as img:
             img.write(file_content)
-            return Path(f"./onebot/images/{self._get_uuid()}.{file_format}").resolve()
+            return Path(f"./onebot/images/{self._get_uuid()}.{file_format}").resolve().as_posix()
 
-    def _get_uuid(self) -> dict:
+    def _get_uuid(self) -> str:
         return str(uuid.uuid1()).replace("-", "")
 
-    async def _get_image_type(self, url) -> dict:
+    async def _get_image_type(self, url) -> Tuple[str, Any]:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, timeout=10.0)
             file_signature = response.content[:8]
