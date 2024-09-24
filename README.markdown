@@ -107,7 +107,11 @@
 
 ## 贡献者
 
+### Largange-Python.OneBot
+
 [![][contrib-image_lgrpyob]][contrib-link_lgrpyob]
+
+### Lagrange-Python(Pure Protocol)
 
 [![][contrib-image_lgrpy]][contrib-link_lgrpy]
 
