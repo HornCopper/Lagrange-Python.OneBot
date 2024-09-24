@@ -90,7 +90,20 @@
 
 ## 注意
 
-* 初次使用请
+* 初次使用会生成`config.yml`位于项目根目录，**不要修改`config_template.yml`！！！**
+* 按配置项填写完毕后再运行`python __init__.py`。
+* 你需要自行解决`Sign Server`，本项目（基于`Lagrange-Python`）的`Sign Server`目前与`LagrangeDev`组织下的所有`Lagrange`项目的`Sign Server`均可以互通使用。
+
+<details>
+<summary>看到我了吗</summary
+
+引用自`wyapx/README.md`
+
+~~**还不快把star和follow给我交了**~~  
+
+不然我就呜呜呜了  
+![555](https://raw.githubusercontent.com/iceBear67/wyapx/dev/photo_2023-09-01_14-54-47.jpg)
+</details>
 
 ## 贡献者
 
