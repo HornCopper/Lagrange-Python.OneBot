@@ -55,7 +55,7 @@ async def GroupMessageEventHandler(client: Client, converter: MessageConverter, 
     event_content = event.__dict__
     record_data = MessageEvent(
         msg_id=message_id,
-        msg_chain=list([json.dumps(element.__dict__, ensure_ascii=False) for element in event_content.pop("msg_chain")]),
+        msg_chain=list([json.dumps(element.__dict__, ensure_ascii=False, default=converter.bytes_serializer) for element in event_content.pop("msg_chain")]),
         **(event_content)
     )
     db.save(record_data)
@@ -92,7 +92,7 @@ async def PrivateMessageEventHandler(client: Client, converter: MessageConverter
         seq=event.seq,
         uin=event.from_uin,
         msg=event.msg,
-        msg_chain=list([json.dumps(element.__dict__, ensure_ascii=False) for element in event_content.pop("msg_chain")])
+        msg_chain=list([json.dumps(element.__dict__, ensure_ascii=False, default=converter.bytes_serializer) for element in event_content.pop("msg_chain")])
     )
     db.save(record_data)
     formatted_event = PrivateMessageEvent(

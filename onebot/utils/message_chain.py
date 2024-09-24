@@ -168,3 +168,9 @@ class MessageConverter:
         else:
             logger.onebot.error(f"Local voice not found: {local_path}")
             return None
+        
+    @staticmethod
+    def bytes_serializer(obj):
+        if isinstance(obj, bytes):
+            return obj.decode("utf-8", errors="ignore") 
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")

@@ -43,7 +43,7 @@
 - [x] set_group_leave
 - [ ] set_group_special_title
 - [ ] set_friend_add_request
-- [ ] set_group_add_request
+- [x] set_group_add_request
 - [x] get_login_info
 - [x] get_stranger_info
 - [x] get_friend_list
