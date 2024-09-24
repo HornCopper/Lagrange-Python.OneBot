@@ -1,6 +1,6 @@
 <h1 align="center"><i>✨ Lagrange Python (OneBot 11) ✨ </i></h1>
 
-<h3 align="center">基于 Lagrange-Python 的 OneBot 11 实现</h3>
+<h3 align="center">基于 [Lagrange-Python](https://github.com/LagrangeDev/lagrange-python) 的 OneBot 11 实现</h3>
 
 <p align="center">
   <a href="https://github.com/howmanybots/onebot/blob/master/README.md">
