@@ -56,11 +56,41 @@
 ## 消息段
 - [x] Text
 - [x] Image
-- [x] Audio (Send Only)
+- [x] Audio
 - [ ] File
 - [ ] At
 - [ ] MarketFace
 - [ ] Quote
+
+## 事件
+
+### 消息事件
+
+- [x] PrivateMessage
+- [x] GroupMessage
+
+### 通知事件
+
+- [ ] GroupUpload
+- [ ] GroupAdmin
+- [x] GroupDecrease
+- [ ] GroupIncrease
+- [ ] GroupBan
+- [ ] FriendAdd
+- [x] GroupRecall
+- [ ] FriendRecall
+- [ ] PokeNotify
+- [ ] LuckyKingNotify
+- [ ] HonorNotify
+
+### 请求事件
+
+- [ ] FriendRequest
+- [x] GroupRequest
+
+## 注意
+
+* 初次使用请
 
 ## 贡献者
 
