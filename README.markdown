@@ -1,6 +1,6 @@
 <h1 align="center"><i>✨ Lagrange Python (OneBot 11) ✨ </i></h1>
 
-<h3 align="center">基于 [Lagrange-Python](https://github.com/LagrangeDev/lagrange-python) 的 OneBot 11 实现</h3>
+<h3 align="center">基于 Lagrange-Python 的 OneBot 11 实现</h3>
 
 <p align="center">
   <a href="https://github.com/howmanybots/onebot/blob/master/README.md">
@@ -107,8 +107,14 @@
 
 ## 贡献者
 
-[![][contrib-image]][contrib-link]
+[![][contrib-image_lgrpyob]][contrib-link_lgrpyob]
 
-[contrib-image]: https://contrib.rocks/image?repo=HornCopper/Lagrange-Python.OneBot
+[![][contrib-image_lgrpy]][contrib-link_lgrpy]
 
-[contrib-link]: https://github.com/HornCopper/Lagrange-Python.OneBot/graphs/contributors
+[contrib-image_lgrpy]: https://contrib.rocks/image?repo=LagrangeDev/lagrange-python
+
+[contrib-link_lgrpy]: https://github.com/LagrangeDev/lagrange-python/graphs/contributors
+
+[contrib-image_lgrpyob]: https://contrib.rocks/image?repo=HornCopper/Lagrange-Python.OneBot
+
+[contrib-link_lgrpyob]: https://github.com/HornCopper/Lagrange-Python.OneBot/graphs/contributors
