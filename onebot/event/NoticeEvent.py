@@ -18,3 +18,8 @@ class GroupRecallNoticeEvent(NoticeEvent):
     user_id: int = 0
     operator_id: int = 0
     message_id: int = 0
+
+class FriendRecallNoticeEvent(NoticeEvent):
+    notice_type: str = "friend_recall"
+    user_id: int = 0
+    message_id: int = 0

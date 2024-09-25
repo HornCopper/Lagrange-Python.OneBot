@@ -10,7 +10,8 @@ from lagrange.client.events.group import (
     GroupMemberJoinRequest
 )
 from lagrange.client.events.friend import (
-    FriendMessage
+    FriendMessage,
+    FriendRecall
 )
 from onebot.event.MessageEvent import (
     GroupMessageSender,
@@ -19,7 +20,8 @@ from onebot.event.MessageEvent import (
 )
 from onebot.event.NoticeEvent import (
     GroupDecreaseNoticeEvent,
-    GroupRecallNoticeEvent
+    GroupRecallNoticeEvent,
+    FriendRecallNoticeEvent
 )
 from onebot.event.RequestEvent import (
     GroupRequestEvent
@@ -32,7 +34,7 @@ from onebot.utils.datamodels import (
 from onebot.utils.message_chain import MessageConverter
 from onebot.cache import get_info
 
-from config import Config
+from config import Config, logger
 
 import json
 import ws
@@ -52,6 +54,9 @@ async def GroupMessageEventHandler(client: Client, converter: MessageConverter, 
     message_id = generate_message_id(event.grp_id, event.seq)
     if Config.ignore_self and event.uin == client.uin:
         return
+    
+    logger.onebot.info(f"Received message ({message_id}/{event.seq}) from group ({event.grp_id}): {event.msg}")
+
     event_content = event.__dict__
     record_data = MessageEvent(
         msg_id=message_id,
@@ -85,6 +90,7 @@ async def PrivateMessageEventHandler(client: Client, converter: MessageConverter
         return
     content = await converter.convert_to_segments(event.msg_chain, "friend")
     message_id = generate_message_id(event.from_uin, event.seq)
+    logger.onebot.info(f"Received message ({message_id}/{event.seq}) from friend ({event.from_uin}): {event.msg}")
     event_content = event.__dict__
     record_data = MessageEvent(
         msg_id=message_id,
@@ -96,7 +102,7 @@ async def PrivateMessageEventHandler(client: Client, converter: MessageConverter
     )
     db.save(record_data)
     formatted_event = PrivateMessageEvent(
-        message_id=event.msg_id,
+        message_id=message_id,
         time=event.timestamp,
         user_id=event.from_uin, 
         self_id=event.to_uin, 
@@ -175,6 +181,25 @@ async def GroupRequestEventHandler(client: Client, converter: MessageConverter, 
         user_id = int(uin),
         comment = "" if isinstance(event, GroupInvite) else str(event.answer),
         flag = str(event.grp_id) + "-" + str(latest_request.seq) + "-" + str(latest_request.event_type) + "-" + sub_type
+    )
+    await ws.websocket_connection.send(
+        json.dumps(
+            converter.convert_to_dict(formatted_event),
+            ensure_ascii=False
+        )
+    )
+
+@init_handler
+async def FriendRecallEventHandler(client: Client, converter: MessageConverter, event: FriendRecall):
+    uin = event.from_uin
+    seq = event.seq
+    message: MessageEvent | Any = db.where_one(MessageEvent(), "uin = ? AND seq = ?", uin, seq, default=None)
+    if message is None:
+        return
+    formatted_event = FriendRecallNoticeEvent(
+        self_id = client.uin,
+        user_id = uin,
+        message_id = message.msg_id
     )
     await ws.websocket_connection.send(
         json.dumps(
