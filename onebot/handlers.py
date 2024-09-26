@@ -7,7 +7,8 @@ from lagrange.client.events.group import (
     GroupRecall,
     GroupMemberQuit,
     GroupInvite,
-    GroupMemberJoinRequest
+    GroupMemberJoinRequest,
+    GroupMuteMember
 )
 from lagrange.client.events.friend import (
     FriendMessage,
@@ -21,7 +22,8 @@ from onebot.event.MessageEvent import (
 from onebot.event.NoticeEvent import (
     GroupDecreaseNoticeEvent,
     GroupRecallNoticeEvent,
-    FriendRecallNoticeEvent
+    FriendRecallNoticeEvent,
+    GroupBanNoticeEvent
 )
 from onebot.event.RequestEvent import (
     GroupRequestEvent
@@ -56,11 +58,12 @@ async def GroupMessageEventHandler(client: Client, converter: MessageConverter, 
         return
     
     logger.onebot.info(f"Received message ({message_id}/{event.seq}) from group ({event.grp_id}): {event.msg}")
-
+    msg_chain = event.msg_chain
     event_content = event.__dict__
+    event_content.pop("msg_chain")
     record_data = MessageEvent(
         msg_id=message_id,
-        msg_chain=list([json.dumps(element.__dict__, ensure_ascii=False, default=converter.bytes_serializer) for element in event_content.pop("msg_chain")]),
+        msg_chain=[segment.__dict__ for segment in (await converter.convert_to_segments(msg_chain, "grp", group_id=event.grp_id))],
         **(event_content)
     )
     db.save(record_data)
@@ -98,7 +101,7 @@ async def PrivateMessageEventHandler(client: Client, converter: MessageConverter
         seq=event.seq,
         uin=event.from_uin,
         msg=event.msg,
-        msg_chain=list([json.dumps(element.__dict__, ensure_ascii=False, default=converter.bytes_serializer) for element in event_content.pop("msg_chain")])
+        msg_chain=[segment.__dict__ for segment in (await converter.convert_to_segments(event.msg_chain, "friend", uid=event.from_uid))]
     )
     db.save(record_data)
     formatted_event = PrivateMessageEvent(
@@ -200,6 +203,35 @@ async def FriendRecallEventHandler(client: Client, converter: MessageConverter, 
         self_id = client.uin,
         user_id = uin,
         message_id = message.msg_id
+    )
+    await ws.websocket_connection.send(
+        json.dumps(
+            converter.convert_to_dict(formatted_event),
+            ensure_ascii=False
+        )
+    )
+
+
+@init_handler
+async def GroupBanEventHandler(client: Client, converter: MessageConverter, event: GroupMuteMember):
+    operator_uid = event.operator_uid
+    target_uid = event.target_uid
+    operator_uin = get_info(operator_uid)
+    target_uin = get_info(target_uid)
+    if operator_uin is None:
+        return
+    if target_uid != "" and target_uin is None:
+        return
+    duration = event.duration
+    if target_uid == "":
+        target_uin = 0
+        duration = -1
+    formatted_event = GroupBanNoticeEvent(
+        self_id = client.uin,
+        group_id = event.grp_id,
+        operator_id = int(operator_uin),
+        user_id = int(target_uin), # type: ignore
+        duration = duration
     )
     await ws.websocket_connection.send(
         json.dumps(

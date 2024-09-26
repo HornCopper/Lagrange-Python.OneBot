@@ -58,9 +58,9 @@
 - [x] Image
 - [x] Audio
 - [ ] File
-- [ ] At
+- [x] At
 - [ ] MarketFace
-- [ ] Quote
+- [x] Quote (Receive Only)
 
 ## 事件
 
@@ -75,10 +75,10 @@
 - [ ] GroupAdmin
 - [x] GroupDecrease
 - [ ] GroupIncrease
-- [ ] GroupBan
+- [x] GroupBan
 - [ ] FriendAdd
 - [x] GroupRecall
-- [ ] FriendRecall
+- [x] FriendRecall
 - [ ] PokeNotify
 - [ ] LuckyKingNotify
 - [ ] HonorNotify

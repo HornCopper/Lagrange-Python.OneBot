@@ -23,3 +23,10 @@ class FriendRecallNoticeEvent(NoticeEvent):
     notice_type: str = "friend_recall"
     user_id: int = 0
     message_id: int = 0
+
+class GroupBanNoticeEvent(NoticeEvent):
+    notice_type: str = "group_ban"
+    group_id: int = 0
+    operator_id: int = 0
+    user_id: int = 0
+    duration: int = 0

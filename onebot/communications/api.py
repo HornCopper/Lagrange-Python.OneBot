@@ -4,6 +4,7 @@ from typing import Any, Literal, List, Tuple
 
 from lagrange.client.client import Client, BotFriend
 from lagrange.client.message.elems import Text
+from lagrange.client.message.types import Element
 from lagrange.pb.service.group import GetGrpMemberInfoRspBody
 
 from onebot.utils.message_segment import MessageSegment
@@ -33,7 +34,7 @@ class Communication:
             message = self.message_converter.parse_message(message, MessageSegment)
             message_ = await self.message_converter.convert_to_elements(message, group_id)
         elif isinstance(message, str):
-            message_ = [Text(message)]
+            message_: List[Element] = [Text(message)]
             message = message_
         try:
             seq = await self.client.send_grp_msg(msg_chain=message_, grp_id=group_id) # type: ignore
@@ -46,7 +47,7 @@ class Communication:
             uid = self.client.uid,
             seq = seq,
             grp_id = group_id,
-            msg_chain = [json.dumps(element.__dict__, ensure_ascii=False) for element in message]
+            msg_chain = [segment.__dict__ for segment in (await self.message_converter.convert_to_segments(message_, "grp", group_id=group_id))]
         )
         db.save(msg_content)
         return {"status": "ok", "retcode": 0, "data": {"message_id": message_id}, "echo": echo}
@@ -59,7 +60,7 @@ class Communication:
             message = self.message_converter.parse_message(message, MessageSegment)
             message_ = await self.message_converter.convert_to_elements(message, 0, str(uid))
         elif isinstance(message, str):
-            message_ = [Text(message)]
+            message_: List[Element] = [Text(message)]
         try:
             seq = await self.client.send_friend_msg(msg_chain=message_, uid=str(uid)) # type: ignore
         except AssertionError:
@@ -71,7 +72,7 @@ class Communication:
             uid = self.client.uid,
             seq = seq,
             grp_id = group_id,
-            msg_chain = [(json.dumps(element.__dict__, ensure_ascii=False) for element in message)]
+            msg_chain = [segment.__dict__ for segment in (await self.message_converter.convert_to_segments(message_, "grp", uid=str(uid)))]
         )
         db.save(msg_content)
         return {"status": "ok", "retcode": 0, "data": {"message_id": seq}, "echo": echo}
@@ -125,16 +126,19 @@ class Communication:
         if message_event is None:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         data = {
-            "message_type": "private",
+            "message_type": "private" if message_event.grp_id == 0 else "group",
             "message_id": message_event.msg_id,
             "real_id": message_event.msg_id,
-            "sender": GroupMessageSender(
-                user_id = message_event.uin,
-                nickname = message_event.nickname
-            ).model_dump(),
-            "message": [json.loads(chain) for chain in message_event.msg_chain]
+            "sender": self.message_converter.convert_to_dict(
+                GroupMessageSender(
+                    user_id = message_event.uin,
+                    nickname = message_event.nickname
+                )
+            ),
+            "message": message_event.msg_chain,
+            "time": message_event.time
         }
-        return {"status": "failed", "retcode": 0, "data": data, "echo": echo}
+        return {"status": "ok", "retcode": 0, "data": data, "echo": echo}
     
     async def get_forward_msg(self, id: str, echo: str) -> dict:
         # Not Impl

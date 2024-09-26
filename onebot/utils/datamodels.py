@@ -27,7 +27,7 @@ class MessageEvent(LagrangeModel):
     grp_name: str = ""
     nickname: str = ""
     msg: str = ""
-    msg_chain: List[str] = []
+    msg_chain: List[dict] = []
 
 class UserInformation(LagrangeModel):
     TABLE_NAME: str | None = "UserInformation"

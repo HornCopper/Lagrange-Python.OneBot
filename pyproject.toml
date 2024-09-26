@@ -10,6 +10,11 @@ dependencies = [
     "typing-extensions>=4.7.0",
     "cryptography>=40.0.0",
     "qrcode>=7.4.2",
+    "pydantic>=2.9.2",
+    "silk-python>=0.2.6",
+    "websockets>=13.1",
+    "pydub>=0.25.1",
+    "cityhash>=0.4.7",
 ]
 keywords = ["QQ", "Tencent", "NTQQ", "Framework", "Bot", "asyncio"]
 classifiers = [

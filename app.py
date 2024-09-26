@@ -9,7 +9,8 @@ from lagrange.client.events.group import (
     GroupRecall,
     GroupMemberQuit,
     GroupInvite,
-    GroupMemberJoinRequest
+    GroupMemberJoinRequest,
+    GroupMuteMember
 )
 from lagrange.client.events.friend import (
     FriendMessage,
@@ -22,7 +23,8 @@ from onebot.handlers import (
     GroupDecreaseEventHandler,
     GroupRecallEventHandler,
     GroupRequestEventHandler,
-    FriendRecallEventHandler
+    FriendRecallEventHandler,
+    GroupBanEventHandler
 )
 from onebot.utils.database import db
 from onebot.utils.datamodels import UserInformation
@@ -73,4 +75,5 @@ lag.subscribe(GroupRecall, GroupRecallEventHandler)
 lag.subscribe(GroupInvite, GroupRequestEventHandler)
 lag.subscribe(GroupMemberJoinRequest, GroupRequestEventHandler)
 lag.subscribe(FriendRecall, FriendRecallEventHandler)
+lag.subscribe(GroupMuteMember, GroupBanEventHandler)
 lag.subscribe(ServerKick, handle_kick)

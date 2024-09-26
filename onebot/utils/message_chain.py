@@ -1,4 +1,4 @@
-from typing import List, Literal, Type
+from typing import List, Literal, Type, Any
 from urllib.parse import urlparse
 
 from lagrange.client.message.elems import Text, Image, At, Quote, MarketFace, Audio
@@ -7,6 +7,8 @@ from lagrange.client.client import Client
 
 from onebot.utils.message_segment import MessageSegment
 from onebot.utils.audio import mp3_to_silk
+from onebot.utils.database import db
+from onebot.utils.datamodels import MessageEvent
 
 import io
 import httpx
@@ -27,18 +29,16 @@ class MessageConverter:
         segments: List[MessageSegment] = []
         for element in elements:
             if isinstance(element, At):
-                segments.append(MessageSegment.at(str(element.uin)))
+                segments.append(MessageSegment.at(element.uin))
             elif isinstance(element, Quote):
-                segments.append(MessageSegment.reply(int(str(element.seq))))
+                msg_data: MessageEvent | Any = db.where_one(MessageEvent(), "uin = ? AND seq = ?", element.uin, element.seq, default=None)
+                if msg_data is None:
+                    continue
+                segments.append(MessageSegment.reply(msg_data.msg_id))
             elif isinstance(element, (Image, MarketFace)):
-                segments.append(MessageSegment.image(str(element.url)))
+                segments.append(MessageSegment.image(element.url))
             elif isinstance(element, Audio):
-                # RIP: wyapx 呜呜呜呜
-                if message_type == "grp":
-                    url = await self.client._highway.get_audio_down_url(element, gid=group_id)
-                elif message_type == "friend":
-                    url = await self.client._highway.get_audio_down_url(element, uid=uid)
-                segments.append(MessageSegment.record(file=url))
+                segments.append(MessageSegment.record(element.url))
             elif isinstance(element, Text):
                 segments.append(MessageSegment.text(element.text))
             else:
@@ -56,8 +56,25 @@ class MessageConverter:
                 elements.append(At(uin=int(int(segment.data["qq"])))) # type: ignore
                 # Not Support Yet
             elif segment.type == "reply":
-                elements.append(Quote(seq=int(segment.data["id"]))) # type: ignore
-                # Not Support Yet
+                # message_id = segment.data["id"]
+                # message_event: MessageEvent | Any = db.where_one(MessageEvent(), "msg_id = ?", message_id, default=None)
+                # if not message_event:
+                #     continue
+                # elements.append(Quote.build(
+                #     GroupMessage(
+                #         uid=message_event.uid,
+                #         seq=message_event.seq,
+                #         time=message_event.time,
+                #         rand=message_event.rand,
+                #         grp_id=message_event.grp_id,
+                #         uin=message_event.uin,
+                #         grp_name=message_event.grp_name,
+                #         nickname=message_event.nickname,
+                        
+                #     )
+                # ))
+                continue
+                # Not Support Yet 谁爱写谁写吧
             elif segment.type == "image":
                 image_content = segment.data["file"]
                 image_content = await self._process_image_content(image_content)

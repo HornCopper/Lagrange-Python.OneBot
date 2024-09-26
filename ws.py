@@ -10,13 +10,13 @@ from onebot.communications.api import Communication
 websocket_connection = None
 
 async def process(client: Client, data: dict, instance: Communication) -> dict:
-    echo = data.get("echo")
-    action = data.get("action")
+    echo = data.get("echo", "")
+    action: str = data.get("action", "")
     if not hasattr(instance, action):
         logger.onebot.error(f"Client Request Action Failed: `{action}` Not Exists.")
         return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
-    logger.onebot.debug(f"Client Request Action Successfully: `{action}`.")
-    params = data.get("params")
+    params: dict = data.get("params", {})
+    logger.onebot.debug(f"Client Request Action Successfully: `{action}` with echo {echo}, params: " + json.dumps(params, ensure_ascii=False))
     method = getattr(instance, action)
     try:
         resp = await method(echo=echo, **params)
