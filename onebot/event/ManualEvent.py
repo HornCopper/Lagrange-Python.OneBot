@@ -3,9 +3,9 @@ from typing import Literal
 from datetime import datetime
 
 class Event(BaseModel):
-    time: int = int(datetime.now().timestamp())
+    time: int = 0
     self_id: int = 0
-    post_type: Literal["message", "notice", "request", "meta_event"] = ""
+    post_type: Literal["message", "notice", "request", "meta_event"] = "message"
 
 class Sender(BaseModel):
     user_id: int = 0

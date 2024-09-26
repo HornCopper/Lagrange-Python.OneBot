@@ -71,3 +71,16 @@ class GetFriendListRsp(ProtoStruct):
 
 def propertys(properties: list[FriendProperty]):
     return {prop.code: prop.value for prop in properties}
+
+class PBHandleFriendRequest(ProtoStruct):
+    action: int = proto_field(1)
+    target_uid: str = proto_field(2)
+
+    @classmethod
+    def build(
+        cls, target_uid: str, accept: bool
+    ) -> "PBHandleFriendRequest":
+        return cls(
+            action = 3 if accept else 5,
+            target_uid = target_uid
+        )

@@ -76,7 +76,7 @@
 - [x] GroupDecrease
 - [ ] GroupIncrease
 - [x] GroupBan
-- [ ] FriendAdd
+- [x] FriendAdd
 - [x] GroupRecall
 - [x] FriendRecall
 - [ ] PokeNotify
@@ -85,7 +85,7 @@
 
 ### 请求事件
 
-- [ ] FriendRequest
+- [x] FriendRequest
 - [x] GroupRequest
 
 ## 注意

@@ -1,5 +1,6 @@
 from typing import Any
 from functools import wraps
+from datetime import datetime
 
 from lagrange.client.client import Client
 from lagrange.client.events.group import (
@@ -12,7 +13,8 @@ from lagrange.client.events.group import (
 )
 from lagrange.client.events.friend import (
     FriendMessage,
-    FriendRecall
+    FriendRecall,
+    FriendRequest
 )
 from onebot.event.MessageEvent import (
     GroupMessageSender,
@@ -23,10 +25,12 @@ from onebot.event.NoticeEvent import (
     GroupDecreaseNoticeEvent,
     GroupRecallNoticeEvent,
     FriendRecallNoticeEvent,
+    FriendAddNoticeEvent,
     GroupBanNoticeEvent
 )
 from onebot.event.RequestEvent import (
-    GroupRequestEvent
+    GroupRequestEvent,
+    FriendRequestEvent
 )
 from onebot.utils.random import generate_message_id
 from onebot.utils.database import db
@@ -56,7 +60,6 @@ async def GroupMessageEventHandler(client: Client, converter: MessageConverter, 
     message_id = generate_message_id(event.grp_id, event.seq)
     if Config.ignore_self and event.uin == client.uin:
         return
-    
     logger.onebot.info(f"Received message ({message_id}/{event.seq}) from group ({event.grp_id}): {event.msg}")
     msg_chain = event.msg_chain
     event_content = event.__dict__
@@ -93,8 +96,7 @@ async def PrivateMessageEventHandler(client: Client, converter: MessageConverter
         return
     content = await converter.convert_to_segments(event.msg_chain, "friend")
     message_id = generate_message_id(event.from_uin, event.seq)
-    logger.onebot.info(f"Received message ({message_id}/{event.seq}) from friend ({event.from_uin}): {event.msg}")
-    event_content = event.__dict__
+    logger.onebot.info(f"Received message ({message_id}/{event.seq}) from friend ({event.from_uin})[({event.from_uid})]: {event.msg}")
     record_data = MessageEvent(
         msg_id=message_id,
         uid=event.from_uid,
@@ -128,16 +130,16 @@ async def GroupDecreaseEventHandler(client: Client, converter: MessageConverter,
     else:
         sub_type = "leave"
     correct_operator_uid = ''.join([char for char in event.operator_uid.split("\n")[2].split(" ")[0] if char.isprintable()])
-    print(event.operator_uid)
     operator_id = get_info(correct_operator_uid)
     if operator_id == None:
         operator_id = 0
     formatted_event = GroupDecreaseNoticeEvent(
-        self_id = client.uin,
-        sub_type = sub_type,
-        group_id = event.grp_id,
-        operator_id = int(operator_id),
-        user_id = event.uin
+        time=int(datetime.now().timestamp()),
+        self_id=client.uin,
+        sub_type=sub_type,
+        group_id=event.grp_id,
+        operator_id=int(operator_id),
+        user_id=event.uin
     )
     await ws.websocket_connection.send(
         json.dumps(
@@ -155,11 +157,12 @@ async def GroupRecallEventHandler(client: Client, converter: MessageConverter, e
     if message_event is None:
         return
     formatted_event = GroupRecallNoticeEvent(
-        self_id = client.uin,
-        group_id = event.grp_id,
-        operator_id = int(uin),
-        user_id = message_event.uin,
-        message_id = message_event.msg_id
+        time=int(datetime.now().timestamp()),
+        self_id=client.uin,
+        group_id=event.grp_id,
+        operator_id=int(uin),
+        user_id=message_event.uin,
+        message_id=message_event.msg_id
     )
     await ws.websocket_connection.send(
         json.dumps(
@@ -178,12 +181,13 @@ async def GroupRequestEventHandler(client: Client, converter: MessageConverter, 
         return
     sub_type = "invite" if isinstance(event, GroupInvite) else "add"
     formatted_event = GroupRequestEvent(
-        self_id = client.uin,
-        sub_type = sub_type,
-        group_id = event.grp_id,
-        user_id = int(uin),
-        comment = "" if isinstance(event, GroupInvite) else str(event.answer),
-        flag = str(event.grp_id) + "-" + str(latest_request.seq) + "-" + str(latest_request.event_type) + "-" + sub_type
+        time=int(datetime.now().timestamp()),
+        self_id=client.uin,
+        sub_type=sub_type,
+        group_id=event.grp_id,
+        user_id=int(uin),
+        comment="" if isinstance(event, GroupInvite) else str(event.answer),
+        flag=str(event.grp_id) + "-" + str(latest_request.seq) + "-" + str(latest_request.event_type) + "-" + sub_type
     )
     await ws.websocket_connection.send(
         json.dumps(
@@ -200,9 +204,10 @@ async def FriendRecallEventHandler(client: Client, converter: MessageConverter, 
     if message is None:
         return
     formatted_event = FriendRecallNoticeEvent(
-        self_id = client.uin,
-        user_id = uin,
-        message_id = message.msg_id
+        time=int(datetime.now().timestamp()),
+        self_id=client.uin,
+        user_id=uin,
+        message_id=message.msg_id
     )
     await ws.websocket_connection.send(
         json.dumps(
@@ -227,11 +232,44 @@ async def GroupBanEventHandler(client: Client, converter: MessageConverter, even
         target_uin = 0
         duration = -1
     formatted_event = GroupBanNoticeEvent(
-        self_id = client.uin,
-        group_id = event.grp_id,
-        operator_id = int(operator_uin),
-        user_id = int(target_uin), # type: ignore
-        duration = duration
+        time=int(datetime.now().timestamp()),
+        self_id=client.uin,
+        group_id=event.grp_id,
+        operator_id=int(operator_uin),
+        user_id=int(target_uin), # type: ignore
+        duration=duration
+    )
+    await ws.websocket_connection.send(
+        json.dumps(
+            converter.convert_to_dict(formatted_event),
+            ensure_ascii=False
+        )
+    )
+
+
+@init_handler
+async def FriendRequestEventHandler(client: Client, converter: MessageConverter, event: FriendRequest):
+    flag = event.from_uid # 想不到吧 `uid`当`flag`.jpg
+    uin = get_info(event.from_uid)
+    if uin is None:
+        return
+    formatted_event = FriendRequestEvent(
+        time=int(datetime.now().timestamp()),
+        self_id=client.uin,
+        user_id=uin,
+        comment=event.message,
+        flag=flag
+    )
+    formattede_event_add = FriendAddNoticeEvent(
+        time=int(datetime.now().timestamp()),
+        self_id=client.uin,
+        user_id=uin
+    )
+    await ws.websocket_connection.send(
+        json.dumps(
+            converter.convert_to_dict(formattede_event_add),
+            ensure_ascii=False
+        )
     )
     await ws.websocket_connection.send(
         json.dumps(

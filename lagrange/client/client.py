@@ -25,6 +25,7 @@ from lagrange.pb.service.friend import (
     GetFriendListRsp,
     GetFriendListUin,
     PBGetFriendListRequest,
+    PBHandleFriendRequest,
     propertys,
 )
 from lagrange.pb.service.group import (
@@ -485,6 +486,15 @@ class Client(BaseClient):
             0x10C8,
             1,
             PBHandleGroupRequest.build(action, grp_req_seq, ev_type, grp_id, reason).encode(),
+        )
+        if rsp.ret_code:
+            raise AssertionError(rsp.ret_code, rsp.err_msg)
+        
+    async def set_friend_request(self, uid: str, accept: bool):
+        rsp = await self.send_oidb_svc(
+            0XB5D,
+            44,
+            PBHandleFriendRequest.build(uid, accept).encode(),
         )
         if rsp.ret_code:
             raise AssertionError(rsp.ret_code, rsp.err_msg)
