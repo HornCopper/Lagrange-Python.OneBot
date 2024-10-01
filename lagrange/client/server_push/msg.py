@@ -20,7 +20,7 @@ from lagrange.pb.status.group import (
 from lagrange.pb.status.friend import (
     PBFriendRecall,
     PBFriendRequest,
-    PBFriendAdd
+    PBFriendDeleted
 )
 from lagrange.utils.binary.protobuf import proto_decode, ProtoStruct, proto_encode
 from lagrange.utils.binary.reader import Reader
@@ -42,7 +42,8 @@ from ..events.group import (
 )
 from ..events.friend import (
     FriendRecall,
-    FriendRequest
+    FriendRequest,
+    FriendDeleted
 )
 from ..wtlogin.sso import SSOPacket
 from .log import logger
@@ -112,6 +113,14 @@ async def msg_push_handler(client: "Client", sso: SSOPacket):
                 pb.info.to_uid,
                 pb.info.verify,
                 pb.info.source
+            )
+        elif sub_typ == 39: # friend deleted
+            pb = PBFriendDeleted.decode(pkg.message.buf2)
+            return FriendDeleted(
+                pkg.response_head.from_uin,
+                pb.content.info.uid,
+                pkg.response_head.to_uin,
+                pkg.response_head.to_uid
             )
         elif sub_typ == 138: # friend recall
             pb = PBFriendRecall.decode(pkg.message.buf2)

@@ -79,7 +79,8 @@
 - [x] FriendAdd
 - [x] GroupRecall
 - [x] FriendRecall
-- [ ] PokeNotify
+- [x] (Extension)FriendDeleted
+- [x] PokeNotify
 - [ ] LuckyKingNotify
 - [ ] HonorNotify
 

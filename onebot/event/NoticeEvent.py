@@ -34,3 +34,14 @@ class GroupBanNoticeEvent(NoticeEvent):
     operator_id: int = 0
     user_id: int = 0
     duration: int = 0
+
+class FriendDeletedNoticeEvent(NoticeEvent):
+    notice_type: str = "friend_deleted"
+    user_id: int = 0
+
+class GroupPokeNotifyNoticeEvent(NoticeEvent):
+    notice_type: str = "notify"
+    sub_type: str = "poke"
+    group_id: int = 0
+    user_id: int = 0
+    target_id: int = 0

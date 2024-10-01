@@ -259,7 +259,7 @@ class Communication:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         member_info = await self.client.get_grp_member_info(group_id, str(uid))
         person_info = await self.get_stranger_info(user_id, echo)
-        group_owner = not member_info.body[0].is_admin and member_info.body[0].permission == 2
+        group_owner = member_info.body[0].permission == 2
         group_admin = member_info.body[0].is_admin
         if group_owner:
             role = "owner"

@@ -33,7 +33,9 @@ class FriendRecall(FriendEvent):
 
 @dataclass
 class FriendRequest(FriendEvent):
-    from_uid: str
-    to_uid: str
     message: str
     source: str
+
+@dataclass
+class FriendDeleted(FriendEvent):
+    ...

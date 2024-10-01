@@ -23,8 +23,11 @@ class FriendRequestInfo(ProtoStruct):
 class PBFriendRequest(ProtoStruct):
     info: FriendRequestInfo = proto_field(1)
 
-class FriendAddInfo(ProtoStruct):
-    uid: str = proto_field(2)
+class FriendDeletedInfo(ProtoStruct):
+    uid: str = proto_field(1)
 
-class PBFriendAdd(ProtoStruct):
-    info: FriendAddInfo = proto_field(1)
+class FriendDeletedContent(ProtoStruct):
+    info: FriendDeletedInfo = proto_field(14)
+
+class PBFriendDeleted(ProtoStruct):
+    content: FriendDeletedContent = proto_field(1)

@@ -9,12 +9,14 @@ from lagrange.client.events.group import (
     GroupMemberQuit,
     GroupInvite,
     GroupMemberJoinRequest,
-    GroupMuteMember
+    GroupMuteMember,
+    GroupNudge
 )
 from lagrange.client.events.friend import (
     FriendMessage,
     FriendRecall,
-    FriendRequest
+    FriendRequest,
+    FriendDeleted
 )
 from onebot.event.MessageEvent import (
     GroupMessageSender,
@@ -26,7 +28,9 @@ from onebot.event.NoticeEvent import (
     GroupRecallNoticeEvent,
     FriendRecallNoticeEvent,
     FriendAddNoticeEvent,
-    GroupBanNoticeEvent
+    FriendDeletedNoticeEvent,
+    GroupBanNoticeEvent,
+    GroupPokeNotifyNoticeEvent
 )
 from onebot.event.RequestEvent import (
     GroupRequestEvent,
@@ -129,8 +133,11 @@ async def GroupDecreaseEventHandler(client: Client, converter: MessageConverter,
         sub_type = "kick"
     else:
         sub_type = "leave"
-    correct_operator_uid = ''.join([char for char in event.operator_uid.split("\n")[2].split(" ")[0] if char.isprintable()])
-    operator_id = get_info(correct_operator_uid)
+    if event.operator_uid == "":
+        operator_id = 0
+    else:
+        correct_operator_uid = ''.join([char for char in event.operator_uid.split("\n")[2].split(" ")[0] if char.isprintable()])
+        operator_id = get_info(correct_operator_uid)
     if operator_id == None:
         operator_id = 0
     formatted_event = GroupDecreaseNoticeEvent(
@@ -270,6 +277,39 @@ async def FriendRequestEventHandler(client: Client, converter: MessageConverter,
             converter.convert_to_dict(formattede_event_add),
             ensure_ascii=False
         )
+    )
+    await ws.websocket_connection.send(
+        json.dumps(
+            converter.convert_to_dict(formatted_event),
+            ensure_ascii=False
+        )
+    )
+
+@init_handler
+async def FriendDeletedEventHandler(client: Client, converter: MessageConverter, event: FriendDeleted):
+    uin = get_info(event.from_uid)
+    if uin is None:
+        return
+    formatted_event = FriendDeletedNoticeEvent(
+        time=int(datetime.now().timestamp()),
+        self_id=client.uin,
+        user_id=uin
+    )
+    await ws.websocket_connection.send(
+        json.dumps(
+            converter.convert_to_dict(formatted_event),
+            ensure_ascii=False
+        )
+    )
+
+@init_handler
+async def GroupPokeNotifyEventHandler(client: Client, converter: MessageConverter, event: GroupNudge):
+    formatted_event = GroupPokeNotifyNoticeEvent(
+        time=int(datetime.now().timestamp()),
+        self_id=client.uin,
+        group_id=event.grp_id,
+        user_id=event.sender_uin,
+        target_id=event.target_uin
     )
     await ws.websocket_connection.send(
         json.dumps(
