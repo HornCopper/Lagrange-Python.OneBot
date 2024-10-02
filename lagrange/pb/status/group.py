@@ -160,3 +160,17 @@ class PBGroupInvite(ProtoStruct):
     f4: int = proto_field(4)  # 0
     invitor_uid: str = proto_field(5)
     invite_info: bytes = proto_field(6)
+
+class GroupAdminChangedInfo(ProtoStruct):
+    uid: str = proto_field(1)
+    status: bool = proto_field(2)
+
+class GroupAdminChangedContent(ProtoStruct):
+    info_1: GroupAdminChangedInfo = proto_field(1, default=None)
+    info_2: GroupAdminChangedInfo = proto_field(2, default=None)
+
+class PBGroupAdminChanged(ProtoStruct):
+    gid: int = proto_field(1)
+    f2: int = proto_field(2)
+    f3: int = proto_field(3)
+    content: GroupAdminChangedContent = proto_field(4)

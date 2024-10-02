@@ -11,7 +11,10 @@ from lagrange.client.events.group import (
     GroupInvite,
     GroupMemberJoinRequest,
     GroupMuteMember,
-    GroupNudge
+    GroupNudge,
+    GroupMemberJoined, 
+    GroupMemberJoinedByInvite,
+    GroupAdminChange
 )
 from lagrange.client.events.friend import (
     FriendMessage,
@@ -30,7 +33,9 @@ from onebot.handlers import (
     GroupBanEventHandler,
     FriendRequestEventHandler,
     FriendDeletedEventHandler,
-    GroupPokeNotifyEventHandler
+    GroupPokeNotifyEventHandler,
+    GroupIncreaseEventHandler,
+    GroupAdminEventHandler
 )
 from onebot.utils.database import db
 from onebot.utils.datamodels import UserInformation
@@ -74,15 +79,22 @@ async def handle_kick(client: "Client", event: "ServerKick"):
 
 
 lag.log.set_level(Config.log_level)
+
+# GroupEvent
 lag.subscribe(GroupMessage, GroupMessageEventHandler)
-lag.subscribe(FriendMessage, PrivateMessageEventHandler)
+lag.subscribe(GroupNudge, GroupPokeNotifyEventHandler)
+lag.subscribe(GroupMemberJoined, GroupIncreaseEventHandler)
+lag.subscribe(GroupMemberJoinedByInvite, GroupIncreaseEventHandler)
 lag.subscribe(GroupMemberQuit, GroupDecreaseEventHandler)
 lag.subscribe(GroupRecall, GroupRecallEventHandler)
 lag.subscribe(GroupInvite, GroupRequestEventHandler)
 lag.subscribe(GroupMemberJoinRequest, GroupRequestEventHandler)
-lag.subscribe(FriendRecall, FriendRecallEventHandler)
 lag.subscribe(GroupMuteMember, GroupBanEventHandler)
+lag.subscribe(GroupAdminChange, GroupAdminEventHandler)
+
+# Friend Event
+lag.subscribe(FriendRecall, FriendRecallEventHandler)
 lag.subscribe(FriendRequest, FriendRequestEventHandler)
 lag.subscribe(FriendDeleted, FriendDeletedEventHandler)
-lag.subscribe(GroupNudge, GroupPokeNotifyEventHandler)
+lag.subscribe(FriendMessage, PrivateMessageEventHandler)
 lag.subscribe(ServerKick, handle_kick)

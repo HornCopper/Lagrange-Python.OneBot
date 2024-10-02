@@ -16,6 +16,7 @@ from lagrange.pb.status.group import (
     GroupSub20Head,
     PBGroupAlbumUpdate,
     PBGroupInvite,
+    PBGroupAdminChanged
 )
 from lagrange.pb.status.friend import (
     PBFriendRecall,
@@ -39,6 +40,8 @@ from ..events.group import (
     GroupReaction,
     GroupSign,
     GroupAlbumUpdate,
+    GroupMemberJoinedByInvite,
+    GroupAdminChange
 )
 from ..events.friend import (
     FriendRecall,
@@ -89,6 +92,13 @@ async def msg_push_handler(client: "Client", sso: SSOPacket):
             operator_uid=pb.operator_uid,
             exit_type=pb.exit_type,
         )
+    elif typ == 44:
+        if sub_typ == 0:  # admin changed
+            pb = PBGroupAdminChanged.decode(pkg.message.buf2)
+            info = pb.content.info_1 or pb.content.info_2  # 1 for lost; 2 for got
+            if not info:
+                raise ValueError("empty package of `PBGroupAdminChanged`!")
+            return GroupAdminChange(pb.gid, info.uid, info.status)
     elif typ == 84:
         pb = MemberJoinRequest.decode(pkg.message.buf2)
         return GroupMemberJoinRequest(grp_id=pb.grp_id, uid=pb.uid, answer=pb.request_field)
@@ -148,7 +158,20 @@ async def msg_push_handler(client: "Client", sso: SSOPacket):
                         attrs[k.decode()] = int(v.decode())
                     else:
                         attrs[k.decode()] = v.decode()
-                if pb.body.type == 12:
+                if pb.body.type == 1:
+                    if "invitor" in attrs:
+                        # reserve: attrs["msg_nums"]
+                        return GroupMemberJoinedByInvite(
+                            grp_id,
+                            attrs["invitor"],
+                            attrs["invitee"]
+                        )
+                    elif "user" in attrs and "uin" in attrs:
+                        # todo: 群代办
+                        pass
+                    else:
+                        raise TypeError(f"Unhandled GrayTips with attribute: {attrs}")
+                elif pb.body.type == 12:
                     return GroupNudge(
                         grp_id,
                         attrs["uin_str1"],

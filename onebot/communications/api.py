@@ -8,13 +8,13 @@ from lagrange.client.message.types import Element
 from lagrange.pb.service.group import GetGrpMemberInfoRspBody
 
 from onebot.utils.message_segment import MessageSegment
-from onebot.utils.random import generate_message_id
+from onebot.utils.message import generate_message_id
 from onebot.utils.message_chain import MessageConverter
 from onebot.utils.database import db
 from onebot.utils.datamodels import MessageEvent
 from onebot.event.ManualEvent import Anonymous
 from onebot.event.MessageEvent import GroupMessageSender
-from onebot.cache import get_info
+from onebot.cache import get_user_info
 
 import uuid
 import httpx
@@ -53,7 +53,7 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": {"message_id": message_id}, "echo": echo}
     
     async def send_private_msg(self, user_id: int, message: list | str, echo: str, group_id: int = 0) -> dict:
-        uid = get_info(user_id)
+        uid = get_user_info(user_id)
         if not uid:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         if isinstance(message, list):
@@ -179,7 +179,7 @@ class Communication:
         return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
     
     async def set_group_card(self, group_id: int, user_id: int, card: str, echo: str) -> dict:
-        uid = get_info(user_id)
+        uid = get_user_info(user_id)
         if not uid:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         await self.client.rename_grp_member(group_id, str(uid), card)
@@ -227,7 +227,7 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": {"user_id": self.client.uin, "nickname": info.name}, "echo": echo}
     
     async def get_stranger_info(self, user_id: int, echo: str, no_cache: bool = False) -> dict:
-        uid = get_info(user_id)
+        uid = get_user_info(user_id)
         if not uid:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         info = await self.client.get_user_info(str(uid))
@@ -254,7 +254,7 @@ class Communication:
         return {"status": "ok", "retcode": 0, "data": friend_list, "echo": echo}
     
     async def get_group_member_info(self, group_id: int, user_id: int, echo: str, no_cache: bool = False) -> dict:
-        uid = get_info(user_id)
+        uid = get_user_info(user_id)
         if not uid:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
         member_info = await self.client.get_grp_member_info(group_id, str(uid))

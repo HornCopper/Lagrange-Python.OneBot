@@ -147,3 +147,13 @@ class GroupAlbumUpdate(GroupEvent):
 @dataclass
 class GroupInvite(GroupEvent):
     invitor_uid: str
+
+@dataclass
+class GroupMemberJoinedByInvite(GroupEvent):
+    invitor_uin: int
+    uin: int
+
+@dataclass
+class GroupAdminChange(GroupEvent):
+    uid: str
+    status: bool

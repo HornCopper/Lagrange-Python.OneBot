@@ -28,7 +28,7 @@
 - [x] send_msg
 - [x] get_group_info
 - [x] get_group_list
-- [x] delete_msg
+- [x] delete_msg (Group Only)
 - [x] get_msg
 - [ ] get_forward_msg
 - [ ] send_like
@@ -72,14 +72,14 @@
 ### 通知事件
 
 - [ ] GroupUpload
-- [ ] GroupAdmin
+- [x] GroupAdmin
 - [x] GroupDecrease
-- [ ] GroupIncrease
+- [x] GroupIncrease (Bad Support)
 - [x] GroupBan
 - [x] FriendAdd
 - [x] GroupRecall
 - [x] FriendRecall
-- [x] (Extension)FriendDeleted
+- [x] FriendDeleted (Extension)
 - [x] PokeNotify
 - [ ] LuckyKingNotify
 - [ ] HonorNotify

@@ -4,14 +4,14 @@ from onebot.utils.database import db
 from onebot.utils.datamodels import UserInformation
 
 @overload
-def get_info(info: str) -> int | None:
+def get_user_info(info: str) -> int | None:
     ...
 
 @overload
-def get_info(info: int) -> str | None:
+def get_user_info(info: int) -> str | None:
     ...
 
-def get_info(info: str | int) -> str | int | None:
+def get_user_info(info: str | int) -> str | int | None:
     """
     获取`UID`或`UIN`。
 
