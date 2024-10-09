@@ -15,6 +15,7 @@ dependencies = [
     "websockets>=13.1",
     "pydub>=0.25.1",
     "cityhash>=0.4.7",
+    "packaging>=24.1",
 ]
 keywords = ["QQ", "Tencent", "NTQQ", "Framework", "Bot", "asyncio"]
 classifiers = [

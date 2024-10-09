@@ -1,3 +1,1 @@
-# auto generate, do not modify
-
-__version__ = "dev"
+__version__ = '0.1.3-907df99'
