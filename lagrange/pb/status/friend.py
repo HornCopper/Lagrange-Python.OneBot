@@ -1,5 +1,6 @@
 from lagrange.utils.binary.protobuf import proto_field, ProtoStruct
 
+
 class FriendRecallInfo(ProtoStruct):
     from_uid: str = proto_field(1)
     to_uid: str = proto_field(2)
@@ -11,23 +12,29 @@ class FriendRecallInfo(ProtoStruct):
     package_index: int = proto_field(8)
     div_seq: int = proto_field(9)
 
+
 class PBFriendRecall(ProtoStruct):
     info: FriendRecallInfo = proto_field(1)
+
 
 class FriendRequestInfo(ProtoStruct):
     to_uid: str = proto_field(1)
     from_uid: str = proto_field(2)
-    verify: str = proto_field(10) # 验证消息：我是...
+    verify: str = proto_field(10)  # 验证消息：我是...
     source: str = proto_field(11)
+
 
 class PBFriendRequest(ProtoStruct):
     info: FriendRequestInfo = proto_field(1)
 
+
 class FriendDeletedInfo(ProtoStruct):
     uid: str = proto_field(1)
 
+
 class FriendDeletedContent(ProtoStruct):
     info: FriendDeletedInfo = proto_field(14)
+
 
 class PBFriendDeleted(ProtoStruct):
     content: FriendDeletedContent = proto_field(1)

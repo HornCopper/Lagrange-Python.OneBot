@@ -111,11 +111,8 @@ async def msg_push_handler(client: "Client", sso: SSOPacket):
             inn = pb.info.inner
             return GroupMemberJoinRequest(grp_id=inn.grp_id, uid=inn.uid, invitor_uid=inn.invitor_uid)
     elif typ == 0x210:  # friend event, 528 / group file upload notice event
-        if sub_typ == 35: # friend request
-            try:
-                pb = PBFriendRequest.decode(pkg.message.buf2)
-            except KeyError: # 空包wdnmd
-                return
+        if sub_typ == 35:  # friend request
+            pb = PBFriendRequest.decode(pkg.message.buf2)
             return FriendRequest(
                 pkg.response_head.from_uin,
                 pb.info.from_uid,
@@ -124,7 +121,7 @@ async def msg_push_handler(client: "Client", sso: SSOPacket):
                 pb.info.verify,
                 pb.info.source
             )
-        elif sub_typ == 39: # friend deleted
+        elif sub_typ == 39:  # friend deleted
             pb = PBFriendDeleted.decode(pkg.message.buf2)
             return FriendDeleted(
                 pkg.response_head.from_uin,
@@ -132,7 +129,7 @@ async def msg_push_handler(client: "Client", sso: SSOPacket):
                 pkg.response_head.to_uin,
                 pkg.response_head.to_uid
             )
-        elif sub_typ == 138: # friend recall
+        elif sub_typ == 138:  # friend recall
             pb = PBFriendRecall.decode(pkg.message.buf2)
             return FriendRecall(
                 pkg.response_head.from_uin,
