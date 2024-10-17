@@ -10,7 +10,7 @@ if not os.path.exists("./config.yml"):
         "The configuration file does not exist, please edit it, it has been created for you in current directory.\n" + \
         "Do not edit `config_template.yml`, `config.yml` instead!"
     )
-    with open("./config.yml", "w", encoding="utf8") as f:
+    with open("./config.yml", mode="w", encoding="utf8") as f:
         f.write(config_default)
     sys.exit(0)
 
