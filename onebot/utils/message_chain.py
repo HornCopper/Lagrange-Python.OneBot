@@ -110,7 +110,6 @@ class MessageConverter:
     def convert_to_dict(self, obj):
         if not hasattr(obj, "__dict__"):
             return obj
-        
         result = {}
         for key, value in obj.__dict__.items():
             result[key] = self.convert_to_dict(value) if hasattr(value, "__dict__") else value

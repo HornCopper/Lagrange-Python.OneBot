@@ -10,7 +10,13 @@ sign_server: ""
 # SignServer 地址 不可使用`Android`的`QSign`
 
 ws_url: ""
-# 反向 WebSocket 地址
+# OneBot 反向 WebSocket 地址
+
+http_host: ""
+# OneBot HTTP API 监听地址
+
+http_port: ""
+# OneBot HTTP API 监听端口
 
 log_level: "INFO"
 # 日志等级

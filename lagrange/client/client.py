@@ -489,7 +489,7 @@ class Client(BaseClient):
         )
         if rsp.ret_code:
             raise AssertionError(rsp.ret_code, rsp.err_msg)
-        
+
     async def set_friend_request(self, uid: str, accept: bool):
         rsp = await self.send_oidb_svc(
             0XB5D,
