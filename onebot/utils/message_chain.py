@@ -1,4 +1,4 @@
-from typing import List, Literal, Type, Any
+from typing import Literal, Any
 from urllib.parse import urlparse
 
 from lagrange.client.message.elems import Text, Image, At, Quote, MarketFace, Audio
@@ -21,17 +21,29 @@ class MessageConverter:
     def __init__(self, client: Client):
         self.client = client
 
-    async def convert_to_segments(self, elements: List[Element], message_type: Literal["grp", "friend"], group_id: int = 0, uid: str = "") -> List[MessageSegment]:
+    async def convert_to_segments(
+        self,
+        elements: list[Element],
+        message_type: Literal["grp", "friend"],
+        group_id: int = 0,
+        uid: str = ""
+    ) -> list[MessageSegment]:
         """
         将 Lagrange.Element 列表转换为 MessageSegment 列表
         将 Lagrange 传入的消息转换为 OneBot 处理端接受的数据类型
         """
-        segments: List[MessageSegment] = []
+        segments: list[MessageSegment] = []
         for element in elements:
             if isinstance(element, At):
                 segments.append(MessageSegment.at(element.uin))
             elif isinstance(element, Quote):
-                msg_data: MessageEvent | Any = db.where_one(MessageEvent(), "uin = ? AND seq = ?", element.uin, element.seq, default=None)
+                msg_data: MessageEvent | Any = db.where_one(
+                    MessageEvent(),
+                    "uin = ? AND seq = ?",
+                    element.uin,
+                    element.seq,
+                    default=None
+                )
                 if msg_data is None:
                     continue
                 segments.append(MessageSegment.reply(msg_data.msg_id))
@@ -45,19 +57,29 @@ class MessageConverter:
                 logger.onebot.error(f"Unknown message type: {element}")
         return segments
 
-    async def convert_to_elements(self, segments: List[MessageSegment], group_id: int = 0, uid: str = "") -> List[Element]:
+    async def convert_to_elements(
+        self,
+        segments: list[MessageSegment],
+        group_id: int = 0,
+        uid: str = ""
+    ) -> list[Element]:
         """
         将 MessageSegment 列表转换为 Lagrange.Element 列表
         将 OneBot 处理端 收到的消息转换为 Lagrange 接受的数据类型
         """
-        elements: List[Element] = []
+        elements: list[Element] = []
         for segment in segments:
             if segment.type == "at":
                 elements.append(At(uin=int(int(segment.data["qq"])))) # type: ignore
                 # Not Support Yet
             elif segment.type == "reply":
                 # message_id = segment.data["id"]
-                # message_event: MessageEvent | Any = db.where_one(MessageEvent(), "msg_id = ?", message_id, default=None)
+                # message_event: MessageEvent | Any = db.where_one(
+                #   MessageEvent(),
+                #   "msg_id = ?",
+                #   message_id,
+                #   default=None
+                # )
                 # if not message_event:
                 #     continue
                 # elements.append(Quote.build(
@@ -70,7 +92,6 @@ class MessageConverter:
                 #         uin=message_event.uin,
                 #         grp_name=message_event.grp_name,
                 #         nickname=message_event.nickname,
-                        
                 #     )
                 # ))
                 continue
@@ -98,7 +119,11 @@ class MessageConverter:
                 logger.onebot.error(f"Unknown message type: {segment}")
         return elements
 
-    def parse_message(self, messages: List[dict], target_type: Type[Element] | Type[MessageSegment]) -> List[Element | MessageSegment]:
+    def parse_message(
+        self,
+        messages: list[dict],
+        target_type: type[Element] | type[MessageSegment]
+    ) -> list[Element | MessageSegment]:
         parsed_messages = []
         for message in messages:
             if target_type == MessageSegment:
@@ -129,7 +154,7 @@ class MessageConverter:
                 raise ValueError(f"Unknown content type for Image {content}!")
         else:
             raise ValueError(f"Unknown file type for Image {content}!")
-        
+
     async def _download_image_content(self, url: str) -> io.BytesIO | None:
         async with httpx.AsyncClient(follow_redirects=True, verify=False) as httpx_client:
             try:
@@ -184,9 +209,9 @@ class MessageConverter:
         else:
             logger.onebot.error(f"Local voice not found: {local_path}")
             return None
-        
+
     @staticmethod
     def bytes_serializer(obj):
         if isinstance(obj, bytes):
-            return obj.decode("utf-8", errors="ignore") 
+            return obj.decode("utf-8", errors="ignore")
         raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")

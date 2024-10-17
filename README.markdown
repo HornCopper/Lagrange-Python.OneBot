@@ -94,6 +94,7 @@
 * 初次使用会生成`config.yml`位于项目根目录，**不要修改`config_template.yml`！！！**
 * 按配置项填写完毕后再运行`python __init__.py`。
 * 你需要自行解决`Sign Server`，本项目（基于`Lagrange-Python`）的`Sign Server`目前与`LagrangeDev`组织下的所有`Lagrange`项目的`Sign Server`均可以互通使用。
+* [SignServer 自建教程](https://weibo.com/1687422352/5080257344832256)（大嘘）。
 
 <details>
 <summary>看到我了吗</summary

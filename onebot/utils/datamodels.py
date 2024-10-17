@@ -14,7 +14,7 @@ class LagrangeModel(BaseModel):
             return self.dict(*args, **kwargs)
         else:
             return self.model_dump(*args, **kwargs)
-        
+
 class MessageEvent(LagrangeModel):
     TABLE_NAME: str | None = "MessageEvent"
     msg_id: int = 0
