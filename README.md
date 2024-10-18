@@ -14,6 +14,12 @@
 
 **本项目还不完善，如果想要用于生产环境，请移步[go-cqhttp(LagrangeGo)](https://github.com/LagrangeDev/go-cqhttp)或[Lagrange.Core](https://github.com/LagrangeDev/Lagrange.Core)。**
 
+## 部署
+
+~~破产~~省流版：`pip install pdm && pdm install && python __init__.py`。
+
+然后会生成一个`config.yml`，按注释填完再运行`python __init__.py`，完事！
+
 ## 通信
 
 - [x] HTTP GET
