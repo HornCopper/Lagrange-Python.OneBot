@@ -18,7 +18,7 @@
 
 - [x] HTTP GET
 - [x] HTTP POST
-- [ ] 正向 WebSocket
+- [x] 正向 WebSocket
 - [x] 反向 WebSocket
 
 ## API
