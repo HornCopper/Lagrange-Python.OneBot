@@ -17,7 +17,7 @@
 ## 通信
 
 - [x] HTTP GET
-- [ ] ~~HTTP POST~~ (Not Useful)
+- [x] HTTP POST
 - [ ] 正向 WebSocket
 - [x] 反向 WebSocket
 

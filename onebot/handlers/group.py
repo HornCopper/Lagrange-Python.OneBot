@@ -38,9 +38,6 @@ from onebot.event.RequestEvent import (
 
 from config import Config, logger
 
-import ws
-import json
-
 from .decorator import init_handler
 
 @init_handler
@@ -59,27 +56,23 @@ async def GroupMessageEventHandler(client: Client, converter: MessageConverter, 
         **(event_content)
     )
     db.save(record_data)
-    formatted_event = GroupMessageEvent(
-        message_id=message_id,
-        time=event.time, 
-        group_id=event.grp_id, 
-        user_id=event.uin, 
-        self_id=client.uin, 
-        raw_message=event.msg, 
-        message="".join(str(i) for i in content),
-        sender=GroupMessageSender(
-            user_id=event.uin,
-            nickname=event.nickname
+    return [
+            GroupMessageEvent(
+            message_id=message_id,
+            time=event.time, 
+            group_id=event.grp_id, 
+            user_id=event.uin, 
+            self_id=client.uin, 
+            raw_message=event.msg, 
+            message="".join(str(i) for i in content),
+            sender=GroupMessageSender(
+                user_id=event.uin,
+                nickname=event.nickname
+            )
         )
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
-        )
-    )
+    ]
 
-@init_handler   
+@init_handler
 async def GroupDecreaseEventHandler(client: Client, converter: MessageConverter, event: GroupMemberQuit):
     if event.is_kicked_self:
         sub_type = "kick_me"
@@ -90,24 +83,26 @@ async def GroupDecreaseEventHandler(client: Client, converter: MessageConverter,
     if event.operator_uid == "":
         operator_id = 0
     else:
-        correct_operator_uid = ''.join([char for char in event.operator_uid.split("\n")[2].split(" ")[0] if char.isprintable()])
-        operator_id = get_user_info(correct_operator_uid)
-    if operator_id == None:
-        operator_id = 0
-    formatted_event = GroupDecreaseNoticeEvent(
-        time=int(datetime.now().timestamp()),
-        self_id=client.uin,
-        sub_type=sub_type,
-        group_id=event.grp_id,
-        operator_id=int(operator_id),
-        user_id=event.uin
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
+        correct_operator_uid = "".join(
+            [
+                char
+                for char
+                in event.operator_uid.split("\n")[2].split(" ")[0] if char.isprintable()
+            ]
         )
-    )
+        operator_id = get_user_info(correct_operator_uid)
+    if operator_id is None:
+        operator_id = 0
+    return [
+        GroupDecreaseNoticeEvent(
+            time=int(datetime.now().timestamp()),
+            self_id=client.uin,
+            sub_type=sub_type,
+            group_id=event.grp_id,
+            operator_id=int(operator_id),
+            user_id=event.uin
+        )
+    ]
 
 @init_handler
 async def GroupRecallEventHandler(client: Client, converter: MessageConverter, event: GroupRecall):
@@ -117,20 +112,16 @@ async def GroupRecallEventHandler(client: Client, converter: MessageConverter, e
     message_event: MessageEvent | Any = db.where_one(MessageEvent(), "seq = ? AND grp_id = ?", event.seq, event.grp_id, default=None)
     if message_event is None:
         return
-    formatted_event = GroupRecallNoticeEvent(
-        time=int(datetime.now().timestamp()),
-        self_id=client.uin,
-        group_id=event.grp_id,
-        operator_id=int(uin),
-        user_id=message_event.uin,
-        message_id=message_event.msg_id
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
+    return [
+        GroupRecallNoticeEvent(
+            time=int(datetime.now().timestamp()),
+            self_id=client.uin,
+            group_id=event.grp_id,
+            operator_id=int(uin),
+            user_id=message_event.uin,
+            message_id=message_event.msg_id
         )
-    )
+    ]
 
 @init_handler
 async def GroupRequestEventHandler(client: Client, converter: MessageConverter, event: GroupInvite | GroupMemberJoinRequest):
@@ -141,37 +132,29 @@ async def GroupRequestEventHandler(client: Client, converter: MessageConverter, 
     if not uin:
         return
     sub_type = "invite" if isinstance(event, GroupInvite) else "add"
-    formatted_event = GroupRequestEvent(
-        time=int(datetime.now().timestamp()),
-        self_id=client.uin,
-        sub_type=sub_type,
-        group_id=event.grp_id,
-        user_id=int(uin),
-        comment="" if isinstance(event, GroupInvite) else str(event.answer),
-        flag=str(event.grp_id) + "-" + str(latest_request.seq) + "-" + str(latest_request.event_type) + "-" + sub_type
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
+    return [
+        GroupRequestEvent(
+            time=int(datetime.now().timestamp()),
+            self_id=client.uin,
+            sub_type=sub_type,
+            group_id=event.grp_id,
+            user_id=int(uin),
+            comment="" if isinstance(event, GroupInvite) else str(event.answer),
+            flag=str(event.grp_id) + "-" + str(latest_request.seq) + "-" + str(latest_request.event_type) + "-" + sub_type
         )
-    )
+    ]
 
 @init_handler
 async def GroupPokeNotifyEventHandler(client: Client, converter: MessageConverter, event: GroupNudge):
-    formatted_event = GroupPokeNotifyNoticeEvent(
-        time=int(datetime.now().timestamp()),
-        self_id=client.uin,
-        group_id=event.grp_id,
-        user_id=event.sender_uin,
-        target_id=event.target_uin
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
+    return [
+        GroupPokeNotifyNoticeEvent(
+            time=int(datetime.now().timestamp()),
+            self_id=client.uin,
+            group_id=event.grp_id,
+            user_id=event.sender_uin,
+            target_id=event.target_uin
         )
-    )
+    ]
 
 @init_handler
 async def GroupBanEventHandler(client: Client, converter: MessageConverter, event: GroupMuteMember):
@@ -187,20 +170,16 @@ async def GroupBanEventHandler(client: Client, converter: MessageConverter, even
     if target_uid == "":
         target_uin = 0
         duration = -1
-    formatted_event = GroupBanNoticeEvent(
-        time=int(datetime.now().timestamp()),
-        self_id=client.uin,
-        group_id=event.grp_id,
-        operator_id=int(operator_uin),
-        user_id=int(target_uin), # type: ignore
-        duration=duration
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
+    return [
+        GroupBanNoticeEvent(
+            time=int(datetime.now().timestamp()),
+            self_id=client.uin,
+            group_id=event.grp_id,
+            operator_id=int(operator_uin),
+            user_id=int(target_uin), # type: ignore
+            duration=duration
         )
-    )
+    ]
 
 @init_handler
 async def GroupIncreaseEventHandler(client: Client, converter: MessageConverter, event: GroupMemberJoined | GroupMemberJoinedByInvite):
@@ -227,28 +206,19 @@ async def GroupIncreaseEventHandler(client: Client, converter: MessageConverter,
             operator_id=0,
             user_id=event.uin
         )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
-        )
-    )
+    return [formatted_event]
 
 @init_handler
 async def GroupAdminEventHandler(client: Client, converter: MessageConverter, event: GroupAdminChange):
     uin = get_user_info(event.uid)
     if uin is None:
         return
-    formatted_event = GroupAdminNoticeEvent(
-        time=int(datetime.now().timestamp()),
-        self_id=client.uin,
-        sub_type="set" if event.status else "unset",
-        group_id=event.grp_id,
-        user_id=uin
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
+    return [
+        GroupAdminNoticeEvent(
+            time=int(datetime.now().timestamp()),
+            self_id=client.uin,
+            sub_type="set" if event.status else "unset",
+            group_id=event.grp_id,
+            user_id=uin
         )
-    )
+    ]

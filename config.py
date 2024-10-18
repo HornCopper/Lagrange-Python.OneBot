@@ -13,8 +13,9 @@ class config(BaseModel):
     protocol: Literal["windows", "macos", "linux"] = "linux"
     sign_server: str = ""
     ws_url: str = ""
-    http_host: str = ""
-    http_port: str = ""
+    http_get_host: str = ""
+    http_get_port: str = ""
+    http_post_url: str = ""
     log_level: str = "INFO"
     v6: bool = False
     ignore_self: bool = True

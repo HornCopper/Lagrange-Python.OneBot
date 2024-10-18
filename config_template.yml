@@ -12,11 +12,14 @@ sign_server: ""
 ws_url: ""
 # OneBot 反向 WebSocket 地址
 
-http_host: ""
-# OneBot HTTP API 监听地址
+http_get_host: ""
+# OneBot HTTP GET API 监听地址
 
-http_port: ""
-# OneBot HTTP API 监听端口
+http_get_port: ""
+# OneBot HTTP GET API 监听端口
+
+http_post_url: ""
+# OneBot HTTP POST 地址
 
 log_level: "INFO"
 # 日志等级

@@ -29,9 +29,6 @@ from onebot.event.RequestEvent import (
 
 from config import logger
 
-import ws
-import json
-
 from .decorator import init_handler
 
 @init_handler
@@ -40,30 +37,38 @@ async def PrivateMessageEventHandler(client: Client, converter: MessageConverter
         return
     content = await converter.convert_to_segments(event.msg_chain, "friend")
     message_id = generate_message_id(event.from_uin, event.seq)
-    logger.onebot.info(f"Received message ({message_id}/{event.seq}) from friend ({event.from_uin})[({event.from_uid})]: {event.msg}")
+    logger.onebot.info(
+        f"Received message ({message_id}/{event.seq}) from friend ({event.from_uin})[({event.from_uid})]: {event.msg}"
+    )
     record_data = MessageEvent(
         msg_id=message_id,
         uid=event.from_uid,
         seq=event.seq,
         uin=event.from_uin,
         msg=event.msg,
-        msg_chain=[segment.__dict__ for segment in (await converter.convert_to_segments(event.msg_chain, "friend", uid=event.from_uid))]
+        msg_chain=[
+            segment.__dict__
+            for segment
+            in (
+                await converter.convert_to_segments(
+                    event.msg_chain,
+                    "friend",
+                    uid=event.from_uid
+                )
+            )
+        ]
     )
     db.save(record_data)
-    formatted_event = PrivateMessageEvent(
-        message_id=message_id,
-        time=event.timestamp,
-        user_id=event.from_uin, 
-        self_id=event.to_uin, 
-        raw_message=event.msg, 
-        message="".join(str(i) for i in content)
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
+    return [
+        PrivateMessageEvent(
+            message_id=message_id,
+            time=event.timestamp,
+            user_id=event.from_uin,
+            self_id=event.to_uin,
+            raw_message=event.msg,
+            message="".join(str(i) for i in content)
         )
-    )
+    ]
 
 @init_handler
 async def FriendRecallEventHandler(client: Client, converter: MessageConverter, event: FriendRecall):
@@ -72,18 +77,14 @@ async def FriendRecallEventHandler(client: Client, converter: MessageConverter, 
     message: MessageEvent | Any = db.where_one(MessageEvent(), "uin = ? AND seq = ?", uin, seq, default=None)
     if message is None:
         return
-    formatted_event = FriendRecallNoticeEvent(
-        time=int(datetime.now().timestamp()),
-        self_id=client.uin,
-        user_id=uin,
-        message_id=message.msg_id
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
+    return [
+        FriendRecallNoticeEvent(
+            time=int(datetime.now().timestamp()),
+            self_id=client.uin,
+            user_id=uin,
+            message_id=message.msg_id
         )
-    )
+    ]
 
 @init_handler
 async def FriendRequestEventHandler(client: Client, converter: MessageConverter, event: FriendRequest):
@@ -91,44 +92,30 @@ async def FriendRequestEventHandler(client: Client, converter: MessageConverter,
     uin = get_user_info(event.from_uid)
     if uin is None:
         return
-    formatted_event = FriendRequestEvent(
-        time=int(datetime.now().timestamp()),
-        self_id=client.uin,
-        user_id=uin,
-        comment=event.message,
-        flag=flag
-    )
-    formattede_event_add = FriendAddNoticeEvent(
-        time=int(datetime.now().timestamp()),
-        self_id=client.uin,
-        user_id=uin
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formattede_event_add),
-            ensure_ascii=False
+    return [
+        FriendRequestEvent(
+            time=int(datetime.now().timestamp()),
+            self_id=client.uin,
+            user_id=uin,
+            comment=event.message,
+            flag=flag
+        ),
+        FriendAddNoticeEvent(
+            time=int(datetime.now().timestamp()),
+            self_id=client.uin,
+            user_id=uin
         )
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
-        )
-    )
+    ]
 
 @init_handler
 async def FriendDeletedEventHandler(client: Client, converter: MessageConverter, event: FriendDeleted):
     uin = get_user_info(event.from_uid)
     if uin is None:
         return
-    formatted_event = FriendDeletedNoticeEvent(
-        time=int(datetime.now().timestamp()),
-        self_id=client.uin,
-        user_id=uin
-    )
-    await ws.websocket_connection.send(
-        json.dumps(
-            converter.convert_to_dict(formatted_event),
-            ensure_ascii=False
+    return [
+        FriendDeletedNoticeEvent(
+            time=int(datetime.now().timestamp()),
+            self_id=client.uin,
+            user_id=uin
         )
-    )
+    ]

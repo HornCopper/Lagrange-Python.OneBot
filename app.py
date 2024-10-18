@@ -67,11 +67,11 @@ async def get_client(app: OneBotAPI = Depends()):
     return await app.inject_client()
 
 async def run_fastapi(app: OneBotAPI, client: Client):
-    if Config.http_host == "NO":
+    if Config.http_get_host == "NO":
         return
     app.set_client(client)
-    config = uvicorn.Config(app, host=Config.http_host, port=int(Config.http_port), log_level="critical")
-    logger.onebot.success(f"HTTP Server launched! Listening at http://{Config.http_host}:{Config.http_port}!")
+    config = uvicorn.Config(app, host=Config.http_get_host, port=int(Config.http_get_port), log_level="critical")
+    logger.onebot.success(f"HTTP Server launched! Listening at http://{Config.http_get_host}:{Config.http_get_port}!")
     server = uvicorn.Server(config)
     await server.serve()
 
