@@ -9,6 +9,8 @@ from typing import (
     Union,
     overload,
     Literal,
+    TYPE_CHECKING,
+    cast,
 )
 from collections.abc import Coroutine
 
@@ -53,6 +55,7 @@ from lagrange.pb.service.group import (
     PBGetInfoFromUidReq,
     PBGetGrpLastSeq,
     GetGrpLastSeqRsp,
+    PBGetInfoFromUinReq,
 )
 from lagrange.pb.service.oidb import OidbRequest, OidbResponse
 from lagrange.pb.highway.comm import IndexNode
@@ -500,15 +503,37 @@ class Client(BaseClient):
             raise AssertionError(rsp.ret_code, rsp.err_msg)
 
     @overload
-    async def get_user_info(self, uid: str) -> UserInfo: ...
+    async def get_user_info(self, uid_or_uin: Union[str, int], /) -> UserInfo:
+        ...
 
     @overload
-    async def get_user_info(self, uid: list[str]) -> list[UserInfo]: ...
+    async def get_user_info(self, uid_or_uin: Union[list[str], list[int]], /) -> list[UserInfo]:
+        ...
 
-    async def get_user_info(self, uid: Union[str, list[str]]) -> Union[UserInfo, list[UserInfo]]:
-        if isinstance(uid, str):
-            uid = [uid]
-        rsp = GetInfoFromUidRsp.decode((await self.send_oidb_svc(0xFE1, 8, PBGetInfoFromUidReq(uid=uid).encode())).data)
+    async def get_user_info(
+        self,
+        uid_or_uin: Union[str, int, list[str], list[int]],
+        /
+    ) -> Union[UserInfo, list[UserInfo]]:
+        if isinstance(uid_or_uin, list):
+            assert uid_or_uin, "empty uid or uin"
+            userid = uid_or_uin
+        else:
+            userid = [uid_or_uin]
+        if isinstance(userid[0], int):
+            if TYPE_CHECKING:
+                userid = cast(list[int], userid)
+            req, sc = PBGetInfoFromUinReq(uin=userid).encode(), 2
+        elif isinstance(userid[0], str):
+            if TYPE_CHECKING:
+                userid = cast(list[str], userid)
+            req, sc = PBGetInfoFromUidReq(uid=userid).encode(), 8
+        else:
+            raise TypeError(userid[0])
+
+        rsp = GetInfoFromUidRsp.decode(
+            (await self.send_oidb_svc(0xFE1, sc, req, is_uid=True if sc == 2 else False)).data
+        )
         if not rsp.body:
             raise AssertionError("Empty response")
         elif len(rsp.body) == 1:
