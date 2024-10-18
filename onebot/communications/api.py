@@ -28,7 +28,7 @@ class OneBotAPI_V11:
         self.client = client
         self.message_converter = MessageConverter(self.client)
 
-    async def send_group_msg(self, group_id: int, message: Union[list, str], echo: str, user_id: int = 0) -> dict:
+    async def send_group_msg(self, group_id: int, message: Union[list, str], echo: str, user_id: int = 0, auto_escape: bool = False) -> dict:
         if isinstance(message, list):
             message = self.message_converter.parse_message(message, MessageSegment)
             message_ = await self.message_converter.convert_to_elements(message, group_id)
@@ -62,7 +62,7 @@ class OneBotAPI_V11:
         logger.onebot.success(f"Send Message to Group({group_id}): {message_}({message_id}).")
         return {"status": "ok", "retcode": 0, "data": {"message_id": message_id}, "echo": echo}
 
-    async def send_private_msg(self, user_id: int, message: Union[list, str], echo: str, group_id: int = 0) -> dict:
+    async def send_private_msg(self, user_id: int, message: Union[list, str], echo: str, group_id: int = 0, auto_escape: bool = False) -> dict:
         uid = get_user_info(user_id)
         if not uid:
             return {"status": "failed", "retcode": -1, "data": None, "echo": echo}
@@ -99,11 +99,12 @@ class OneBotAPI_V11:
 
     async def send_msg(
             self,
-            user_id: int,
             message_type: Literal["group", "private"],
             message: list | str,
             echo: str,
-            group_id: int = 0
+            user_id: int = 0,
+            group_id: int = 0,
+            auto_escape: bool = False
         ) -> dict:
         method = getattr(self, f"send_{message_type}_msg")
         return await method(user_id=user_id, message=message, group_id=group_id, echo=echo)
