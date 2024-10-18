@@ -52,18 +52,28 @@ async def GroupMessageEventHandler(client: Client, converter: MessageConverter, 
     event_content.pop("msg_chain")
     record_data = MessageEvent(
         msg_id=message_id,
-        msg_chain=[segment.__dict__ for segment in (await converter.convert_to_segments(msg_chain, "grp", group_id=event.grp_id))],
+        msg_chain=[
+            segment.__dict__
+            for segment
+            in (
+                await converter.convert_to_segments(
+                    msg_chain,
+                    "grp",
+                    group_id=event.grp_id
+                )
+            )
+        ],
         **(event_content)
     )
     db.save(record_data)
     return [
             GroupMessageEvent(
             message_id=message_id,
-            time=event.time, 
-            group_id=event.grp_id, 
-            user_id=event.uin, 
-            self_id=client.uin, 
-            raw_message=event.msg, 
+            time=event.time,
+            group_id=event.grp_id,
+            user_id=event.uin,
+            self_id=client.uin,
+            raw_message=event.msg,
             message="".join(str(i) for i in content),
             sender=GroupMessageSender(
                 user_id=event.uin,
@@ -109,7 +119,13 @@ async def GroupRecallEventHandler(client: Client, converter: MessageConverter, e
     uin = get_user_info(event.uid)
     if not uin:
         return
-    message_event: MessageEvent | Any = db.where_one(MessageEvent(), "seq = ? AND grp_id = ?", event.seq, event.grp_id, default=None)
+    message_event: MessageEvent | Any = db.where_one(
+        MessageEvent(),
+        "seq = ? AND grp_id = ?",
+        event.seq,
+        event.grp_id,
+        default=None
+    )
     if message_event is None:
         return
     return [
@@ -124,7 +140,11 @@ async def GroupRecallEventHandler(client: Client, converter: MessageConverter, e
     ]
 
 @init_handler
-async def GroupRequestEventHandler(client: Client, converter: MessageConverter, event: GroupInvite | GroupMemberJoinRequest):
+async def GroupRequestEventHandler(
+    client: Client,
+    converter: MessageConverter,
+    event: GroupInvite | GroupMemberJoinRequest
+):
     latest_request = (await client.fetch_grp_request()).requests[0]
     if event.invitor_uid is None:
         return
@@ -140,7 +160,10 @@ async def GroupRequestEventHandler(client: Client, converter: MessageConverter, 
             group_id=event.grp_id,
             user_id=int(uin),
             comment="" if isinstance(event, GroupInvite) else str(event.answer),
-            flag=str(event.grp_id) + "-" + str(latest_request.seq) + "-" + str(latest_request.event_type) + "-" + sub_type
+            flag=str(event.grp_id) + \
+                "-" + str(latest_request.seq) + \
+                "-" + str(latest_request.event_type) + \
+                "-" + sub_type
         )
     ]
 
@@ -182,7 +205,11 @@ async def GroupBanEventHandler(client: Client, converter: MessageConverter, even
     ]
 
 @init_handler
-async def GroupIncreaseEventHandler(client: Client, converter: MessageConverter, event: GroupMemberJoined | GroupMemberJoinedByInvite):
+async def GroupIncreaseEventHandler(
+    client: Client,
+    converter: MessageConverter,
+    event: GroupMemberJoined | GroupMemberJoinedByInvite
+):
     # 谁放的？不知道
     if isinstance(event, GroupMemberJoined):
         # 非邀请入群

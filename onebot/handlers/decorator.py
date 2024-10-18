@@ -9,7 +9,8 @@ from onebot.utils.message_chain import MessageConverter
 from config import Config
 
 import json
-import ws
+import reserved_websocket
+import forward_websocket
 
 def init_handler(func):
     @wraps(func)
@@ -17,9 +18,9 @@ def init_handler(func):
         converter = MessageConverter(client)
         data: list[Event] = await func(client, converter, *args, **kwargs)
         if data:
-            if ws.websocket_connection:
+            if reserved_websocket.websocket_connection:
                 for event in data:
-                    await ws.websocket_connection.send(
+                    await reserved_websocket.websocket_connection.send(
                         json.dumps(
                             converter.convert_to_dict(event),
                             ensure_ascii=False
@@ -40,4 +41,11 @@ def init_handler(func):
                             ensure_ascii=False
                         ).encode("utf-8")
                     )
+            for event in data:
+                await forward_websocket.forward_websocket_manager.send_message(
+                    json.dumps(
+                        converter.convert_to_dict(event),
+                        ensure_ascii=False
+                    )
+                )
     return wrapper

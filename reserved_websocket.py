@@ -1,15 +1,17 @@
-import websockets
-import json
-import asyncio
+from datetime import datetime
 
 from config import logger, Config
 
 from lagrange.client.client import Client
 from onebot.communications.api import OneBotAPI_V11
 
+import websockets
+import json
+import asyncio
+
 websocket_connection = None
 
-async def process(client: Client, data: dict, instance: OneBotAPI_V11) -> dict:
+async def websocket_process(client: Client, data: dict, instance: OneBotAPI_V11) -> dict:
     echo = data.get("echo", "")
     action: str = data.get("action", "")
     if not hasattr(instance, action):
@@ -33,11 +35,11 @@ async def process(client: Client, data: dict, instance: OneBotAPI_V11) -> dict:
     return resp
 
 
-async def connect(client: Client):
+async def reserved_websocket_connect(client: Client):
     global websocket_connection
-    uri = Config.ws_url
+    uri = Config.reserved_ws_url
     instance = OneBotAPI_V11(client=client)
-    if not Config.ws_url.startswith("ws://") and not Config.ws_url.startswith("wss://"):
+    if not Config.reserved_ws_url.startswith("ws://") and not Config.reserved_ws_url.startswith("wss://"):
         return
     while True:
         try:
@@ -46,22 +48,29 @@ async def connect(client: Client):
                 extra_headers={"X-Self-Id": str(client.uin)}, max_size=10*1024*1024
             ) as websocket:
                 websocket_connection = websocket
-                logger.onebot.success(f"Reserved WebSocket Connected to {Config.ws_url}!")
-
+                logger.onebot.success(f"Reserved WebSocket Connected to {Config.reserved_ws_url}!")
+                await websocket_connection.send(
+                    json.dumps(
+                        {
+                            "time": int(datetime.now().timestamp()),
+                            "self_id": client.uin,
+                            "post_type": "meta_event",
+                            "meta_event_type": "lifecycle",
+                            "sub_type": "connect"
+                        }
+                    ),
+                )
                 while True:
                     try:
                         rec = await websocket.recv()
                         rec = json.loads(rec)
-
-                        rply = await process(client, rec, instance)
+                        rply = await websocket_process(client, rec, instance)
                         await websocket.send(json.dumps(rply, ensure_ascii=False))
-
                     except websockets.exceptions.ConnectionClosed as e:
                         logger.onebot.warning(f"Reserved WebSocket Closed, status code: {e.code}")
                         break
                     except Exception as e:
                         logger.onebot.error(f"Unhandled Exception in message handling: {e}")
-
         except (websockets.exceptions.ConnectionClosed, websockets.exceptions.ConnectionClosedError) as e:
             logger.onebot.warning(f"Reserved WebSocket Connection Closed: {e}, retrying...")
         except ConnectionRefusedError:

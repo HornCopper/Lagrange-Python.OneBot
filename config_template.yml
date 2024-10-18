@@ -1,5 +1,7 @@
 # Lagrange Python (OneBot V11) Configuration
 
+# 基本设置
+
 uin: ""
 # Bot QQ号 使用扫码登录
 
@@ -9,8 +11,21 @@ protocol: ""
 sign_server: ""
 # SignServer 地址 不可使用`Android`的`QSign`
 
-ws_url: ""
+######################################
+
+# 通信方式，设置为空则代表不启用
+
+reserved_ws_url: ""
 # OneBot 反向 WebSocket 地址
+
+forward_ws_host: ""
+# OneBot 正向 WebSocket 监听地址
+
+forward_ws_port: ""
+# OneBot 正向 WebSocket 监听端口
+
+http_post_url: ""
+# OneBot HTTP POST 地址
 
 http_get_host: ""
 # OneBot HTTP GET API 监听地址
@@ -18,8 +33,9 @@ http_get_host: ""
 http_get_port: ""
 # OneBot HTTP GET API 监听端口
 
-http_post_url: ""
-# OneBot HTTP POST 地址
+#######################################
+
+# 额外设置
 
 log_level: "INFO"
 # 日志等级
